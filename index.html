@@ -1,70 +1,143 @@
 <html lang="ja">
-    <head>
-        <meta charset="UTF-8">
-        <title>みがくカメラ</title>
-    </head>
-    <body>
-        <h1>みがくカメラ</h1>
-        <div class="select">
-            <label for="videoSource">カメラ: </label>
-            <select id="videoSource"></select>
-          </div>
 
-          <video autoplay muted playsinline></video>
-    </body>
-    <script>
-        'use strict';
+<head>
 
-        var videoElement = document.querySelector('video');
-        var videoSelect = document.querySelector('select#videoSource');
+  <meta charset="UTF-8">
+  <title>みがくカメラ</title>
+</head>
 
-        videoSelect.onchange = getStream;
+<body>
+  <h1>みがくカメラ</h1>
 
-        getStream().then(getDevices).then(gotDevices);
+  <div class="select">
 
-        function getDevices() {
-          // AFAICT in Safari this only gets default devices until gUM is called :/
-          return navigator.mediaDevices.enumerateDevices();
-        }
+    <label for="videoSource">カメラ: </label>
+    <select id="videoSource"></select>
 
-        function gotDevices(deviceInfos) {
-          window.deviceInfos = deviceInfos; // make available to console
-          //console.log('Available input and output devices:', deviceInfos);
-          for (const deviceInfo of deviceInfos) {
-            const option = document.createElement('option');
-            option.value = deviceInfo.deviceId;
-            if (deviceInfo.kind === 'videoinput') {
-              option.text = deviceInfo.label || `Camera ${videoSelect.length + 1}`;
-              videoSelect.appendChild(option);
-            }
-          }
-        }
+  </div>
 
-        function getStream() {
-          if (window.stream) {
-            window.stream.getTracks().forEach(track => {
-              track.stop();
-            });
-          }
-          const videoSource = videoSelect.value;
-          const constraints = {
-            video: {deviceId: videoSource ? {exact: videoSource} : undefined}
-          };
-          return navigator.mediaDevices.getUserMedia(constraints).
-            then(gotStream).catch(handleError);
-        }
+  <div class="select">
+    <label for="videoResolution">解像度: </label>
 
-        function gotStream(stream) {
-          window.stream = stream; // make stream available to console
-          console.log(videoSelect.options);
-          videoSelect.selectedIndex = [...videoSelect.options].
-            findIndex(option => option.text === stream.getVideoTracks()[0].label);
-          //console.log(stream.getVideoTracks()[0]);
-          videoElement.srcObject = stream;
-        }
+    <select id="videoResolution">
 
-        function handleError(error) {
-          console.error('Error: ', error);
-        }
-        </script>
-        </html>
+      <option value="default">デフォルト</option>
+      <option value="qvga">QVGA (320x240)</option>
+
+      <option value="vga">VGA (640x480)</option>
+      <option value="hd">HD (1280x720)</option>
+
+      <option value="fullhd">Full HD (1920x1080)</option>
+
+    </select>
+
+  </div>
+
+  <video autoplay muted playsinline></video>
+
+</body>
+<script>
+
+  'use strict';
+
+
+  var videoElement = document.querySelector('video');
+  var videoSelect = document.querySelector('select#videoSource');
+  var resolutionSelect = document.querySelector('select#videoResolution');
+
+
+  videoSelect.onchange = getStream;
+
+  resolutionSelect.onchange = getStream;
+
+
+  getStream().then(getDevices).then(gotDevices);
+
+
+  function getDevices() {
+    return navigator.mediaDevices.enumerateDevices();
+  }
+
+
+  function gotDevices(deviceInfos) {
+    window.deviceInfos = deviceInfos;
+
+    for (const deviceInfo of deviceInfos) {
+
+      const option = document.createElement('option');
+      option.value = deviceInfo.deviceId;
+
+      if (deviceInfo.kind === 'videoinput') {
+
+        option.text = deviceInfo.label || `Camera ${videoSelect.length + 1}`;
+
+        videoSelect.appendChild(option);
+      }
+
+    }
+
+  }
+
+
+  function getStream() {
+    if (window.stream) {
+      window.stream.getTracks().forEach(track => {
+
+        track.stop();
+      });
+    }
+    const videoSource = videoSelect.value;
+
+    const resolution = resolutionSelect.value;
+
+    let constraints = {
+
+      video: { deviceId: videoSource ? { exact: videoSource } : undefined }
+
+    };
+
+
+    if (resolution !== 'default') {
+
+      const resolutionConstraints = {
+
+        qvga: { width: { exact: 320 }, height: { exact: 240 } },
+
+        vga: { width: { exact: 640 }, height: { exact: 480 } },
+
+        hd: { width: { exact: 1280 }, height: { exact: 720 } },
+
+        fullhd: { width: { exact: 1920 }, height: { exact: 1080 } }
+
+      };
+
+      constraints.video = { ...constraints.video, ...resolutionConstraints[resolution] };
+
+    }
+
+    return navigator.mediaDevices.getUserMedia(constraints).
+
+      then(gotStream).catch(handleError);
+  }
+
+
+  function gotStream(stream) {
+
+    window.stream = stream;
+    videoSelect.selectedIndex = [...videoSelect.options].
+
+      findIndex(option => option.text === stream.getVideoTracks()[0].label);
+
+    videoElement.srcObject = stream;
+
+  }
+
+
+  function handleError(error) {
+    console.error('Error: ', error);
+
+  }
+
+</script>
+
+</html>
