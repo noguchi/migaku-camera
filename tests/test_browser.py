@@ -365,7 +365,20 @@ class CameraBrowserTests(unittest.TestCase):
         self.start()
         self.capture()
         self.capture()
+        self.page.evaluate("""() => {
+          window.nativeEnumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+          navigator.mediaDevices.enumerateDevices = () => new Promise(resolve => {
+            window.finishEnumeration = async () => resolve(await nativeEnumerate());
+          });
+        }""")
+        self.page.locator('#refresh-button').click()
+        self.poll("typeof finishEnumeration === 'function'")
         self.page.evaluate("window.dispatchEvent(new PageTransitionEvent('pagehide'))")
+        self.page.evaluate("navigator.mediaDevices.dispatchEvent(new Event('devicechange'))")
+        self.page.evaluate('finishEnumeration()')
+        self.page.evaluate('() => { navigator.mediaDevices.enumerateDevices = nativeEnumerate; }')
+        self.page.wait_for_timeout(150)
+        self.assertEqual(self.page.evaluate('testStreams.length'), 2)
         self.assertTrue(self.page.evaluate("testStreams.every(s => s.getVideoTracks()[0].readyState === 'ended')"))
         expect(self.page.locator('#photo-list')).to_be_empty()
         self.assertEqual(self.page.evaluate('revokedUrls.length'), 2)

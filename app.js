@@ -15,6 +15,7 @@
   let photoGeneration = 0;
   let photoSequence = 0;
   let audioContext = null;
+  let pageActive = true;
 
   function status(message = '') {
     $('status').textContent = message;
@@ -95,7 +96,7 @@
   }
 
   async function start(useDefault = false) {
-    if (!supported || starting) return;
+    if (!supported || starting || !pageActive) return;
     const request = ++generation;
     releaseStream();
     starting = true;
@@ -269,8 +270,10 @@
     void capture();
   });
   async function reconnect(manual = false) {
+    if (!pageActive) return;
+    const request = generation;
     await refreshDevices(manual);
-    if (!stream && !starting && camera.value) void start();
+    if (pageActive && request === generation && !stream && !starting && camera.value) void start();
   }
   $('refresh-button').addEventListener('click', () => void reconnect(true));
   camera.addEventListener('change', () => void start());
@@ -283,12 +286,16 @@
   video.addEventListener('loadeddata', controls);
   video.addEventListener('resize', controls);
   window.addEventListener('pagehide', () => {
+    pageActive = false;
     stop();
     clearPhotos();
     if (audioContext) void audioContext.close().catch(() => {});
     audioContext = null;
   });
-  window.addEventListener('pageshow', event => { if (supported && event.persisted) void start(true); });
+  window.addEventListener('pageshow', event => {
+    pageActive = true;
+    if (supported && event.persisted) void start(true);
+  });
   if (supported) {
     media.addEventListener('devicechange', () => void reconnect());
     void start(true);
