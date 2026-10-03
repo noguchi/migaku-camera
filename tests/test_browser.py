@@ -316,10 +316,15 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('#status')).to_have_text('カメラが見つかりません')
         expect(self.page.locator('#camera-select')).to_be_disabled()
         expect(self.page.locator('#refresh-button')).to_be_enabled()
-        self.page.evaluate('() => { navigator.mediaDevices.enumerateDevices = nativeEnumerate; navigator.mediaDevices.getUserMedia = nativeGetUserMedia; }')
+        self.page.evaluate("""() => {
+          navigator.mediaDevices.enumerateDevices = async () => testStreams.length
+            ? nativeEnumerate() : [{kind: 'videoinput', deviceId: '', label: ''}];
+          navigator.mediaDevices.getUserMedia = nativeGetUserMedia;
+        }""")
         self.page.locator('#refresh-button').click()
         expect(self.page.locator('#camera-select option')).to_have_count(2)
         expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
+        self.assertNotIn('deviceId', self.page.evaluate('testConstraints[0].video'))
 
     def test_permission_busy_and_unavailable_camera_errors(self):
         self.open()

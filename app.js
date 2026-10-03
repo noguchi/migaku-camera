@@ -273,7 +273,8 @@
     if (!pageActive) return;
     const request = generation;
     await refreshDevices(manual);
-    if (pageActive && request === generation && !stream && !starting && camera.value) void start();
+    // Before permission is granted, enumeration may hide device IDs.
+    if (pageActive && request === generation && !stream && !starting && (manual || camera.value)) void start();
   }
   $('refresh-button').addEventListener('click', () => void reconnect(true));
   camera.addEventListener('change', () => void start());
