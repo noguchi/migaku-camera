@@ -47,11 +47,13 @@ python3 -m unittest discover -s tests -v
 
 ### GitHub Pages（ビルド設定不要）
 
-公開用の `gh-pages` ブランチには上記3ファイルと `.nojekyll` だけを配置します。公開設定はリポジトリの [Settings → Pages](https://github.com/noguchi/migaku-camera/settings/pages) で次を選びます。
+今後は開発・公開ともに `main` ブランチを使用します。ルートの `.nojekyll` により静的ファイルをそのまま配信します。公開設定はリポジトリの [Settings → Pages](https://github.com/noguchi/migaku-camera/settings/pages) で次を選びます。
 
 1. Source: **Deploy from a branch**
-2. Branch: **gh-pages**、フォルダー: **/ (root)** → **Save**
+2. Branch: **main**、フォルダー: **/ (root)** → **Save**
 3. 公開処理完了後、HTTPSが有効なことを確認します。表示されたURLをPCで開きます。
+
+以後は `main` へのプッシュでサイトが更新されます。`gh-pages` へのプッシュは不要です。
 
 公開URLは [https://noguchi.github.io/migaku-camera/](https://noguchi.github.io/migaku-camera/) です。HTTPSでHTML・CSS・JavaScriptが配信され、テスト済みファイルと一致することを確認しました。非公開リポジトリでPagesを使うには対応するGitHubプランが必要です。リポジトリの公開範囲を変更する場合は所有者が判断してください。非公開リポジトリでも、通常のPagesサイト自体は公開されます。
 
