@@ -4,39 +4,43 @@
   const $ = id => document.getElementById(id);
   const video = $('video');
   const camera = $('camera-select');
-  const resolution = $('resolution-select');
   const startButton = $('start-button');
   const stopButton = $('stop-button');
   const captureButton = $('capture-button');
   const media = navigator.mediaDevices;
   const supported = window.isSecureContext && !!media?.getUserMedia;
+  const photos = new Map();
   let stream = null;
   let starting = false;
   let capturing = false;
   let generation = 0;
   let enumeration = 0;
   let photoGeneration = 0;
-  let photoUrl = null;
+  let photoSequence = 0;
 
-  function status(message, error = false) {
+  function status(message = '') {
     $('status').textContent = message;
-    $('status').classList.toggle('error', error);
+    $('status').hidden = !message;
   }
 
   function controls() {
     const active = !!stream;
     startButton.disabled = !supported || starting || active;
-    startButton.textContent = starting ? 'カメラを開始しています…' : 'カメラを開始';
     stopButton.disabled = !active && !starting;
-    camera.disabled = !supported || starting || !camera.options.length || !camera.value;
-    resolution.disabled = !supported || starting;
+    camera.disabled = !supported || starting || !camera.value;
     $('refresh-button').disabled = !supported || starting;
     captureButton.disabled = !active || starting || capturing || video.readyState < 2 || !video.videoWidth;
     $('live-badge').textContent = starting ? '準備中' : active ? '接続中' : '停止中';
     $('live-badge').classList.toggle('live', active);
     video.hidden = !active;
     $('preview-placeholder').hidden = active;
-    $('video-size').textContent = active && video.videoWidth ? `${video.videoWidth} × ${video.videoHeight} px` : '映像なし';
+    $('video-size').textContent = active && video.videoWidth ? `${video.videoWidth} × ${video.videoHeight} px` : '';
+  }
+
+  function photoControls() {
+    $('photo-count').textContent = photos.size;
+    $('photo-placeholder').hidden = photos.size > 0;
+    $('clear-button').disabled = photos.size === 0;
   }
 
   function releaseStream() {
@@ -50,26 +54,26 @@
     video.srcObject = null;
   }
 
-  function stop(message = 'カメラを停止しました。撮影済みの写真は保存できます。', error = false) {
+  function stop(message = '') {
     generation++;
     starting = false;
     releaseStream();
     controls();
-    status(message, error);
+    status(message);
   }
 
   const errors = {
-    NotAllowedError: 'カメラの使用が許可されていません。アドレスバーのサイト設定とOSの設定でカメラを許可し、もう一度開始してください。',
-    SecurityError: 'カメラがセキュリティ設定で制限されています。サイトとOSのカメラ権限を確認してください。',
-    NotFoundError: 'カメラが見つかりません。USBカメラの接続を確認し「再検出」を押してください。',
-    DevicesNotFoundError: 'カメラが見つかりません。USB接続を確認してください。',
-    NotReadableError: 'カメラを読み取れません。他のアプリやタブで使用中の場合は停止してください。USB接続やOSのカメラ権限も確認し、再度開始してください。',
-    TrackStartError: 'カメラを開始できません。他のアプリで使用中の場合は停止して、再度開始してください。',
-    OverconstrainedError: '選択したカメラまたは解像度を使用できません。「再検出」でカメラを確認し、解像度を「カメラの標準」にして再度開始してください。',
-    AbortError: 'カメラの開始が中断されました。USB接続を確認して、もう一度開始してください。'
+    NotAllowedError: 'カメラの使用が許可されていません',
+    SecurityError: 'カメラの使用が制限されています',
+    NotFoundError: 'カメラが見つかりません',
+    DevicesNotFoundError: 'カメラが見つかりません',
+    NotReadableError: 'カメラが使用中、または読み取りできません',
+    TrackStartError: 'カメラが使用中、または開始できません',
+    OverconstrainedError: '選択したカメラを使用できません',
+    AbortError: 'カメラの開始が中断されました'
   };
 
-  async function refreshDevices(announce = false) {
+  async function refreshDevices(manual = false) {
     const request = ++enumeration;
     try {
       const devices = (await media.enumerateDevices()).filter(device => device.kind === 'videoinput');
@@ -77,42 +81,35 @@
       const activeId = stream?.getVideoTracks()[0]?.getSettings().deviceId;
       const preferred = activeId || camera.value;
       camera.replaceChildren();
-      devices.forEach((device, index) => camera.add(new Option(device.label || `カメラ ${index + 1}（開始後に名前を表示）`, device.deviceId)));
+      devices.forEach((device, index) => camera.add(new Option(device.label || `カメラ ${index + 1}`, device.deviceId)));
       if (!devices.length) {
-        camera.add(new Option('カメラが見つかりません', ''));
-        if (!stream && !starting) status(errors.NotFoundError, true);
+        camera.add(new Option('カメラなし', ''));
+        if (!stream && !starting && (manual || !$('status').textContent)) status(errors.NotFoundError);
       } else {
         if (devices.some(device => device.deviceId === preferred)) camera.value = preferred;
-        if (announce && !starting && !stream) status('カメラを検出しました。使用するカメラを選んで開始してください。');
+        if (manual && !stream && !starting) status();
       }
-      if (activeId && !devices.some(device => device.deviceId === activeId)) {
-        stop('使用していたカメラの接続が失われました。USB接続を確認し、カメラを選んで再度開始してください。', true);
-      }
+      if (activeId && !devices.some(device => device.deviceId === activeId)) stop('カメラの接続が終了しました');
       controls();
     } catch (error) {
       if (request !== enumeration) return;
-      status(errors[error.name] || 'カメラ一覧を取得できません。「再検出」を押してもう一度お試しください。', true);
+      status(errors[error.name] || 'カメラ一覧を取得できません');
       controls();
     }
   }
 
-  async function start() {
-    if (!supported) return;
+  async function start(useDefault = false) {
+    if (!supported || starting) return;
     const request = ++generation;
     releaseStream();
     starting = true;
     controls();
-    status('カメラの使用許可を確認しています。ブラウザーの許可画面で「許可」を選んでください。');
-    const dimensions = { qvga: [320, 240], vga: [640, 480], hd: [1280, 720], fullhd: [1920, 1080] }[resolution.value];
-    const constraints = {};
-    if (camera.value) constraints.deviceId = { exact: camera.value };
-    if (dimensions) {
-      constraints.width = { exact: dimensions[0] };
-      constraints.height = { exact: dimensions[1] };
-    }
-    let acquired = null;
+    status();
+    // Prefer the largest native camera format, without requiring an unsupported size.
+    const constraints = { width: { ideal: 65535 }, height: { ideal: 65535 }, resizeMode: { ideal: 'none' } };
+    if (!useDefault && camera.value) constraints.deviceId = { exact: camera.value };
     try {
-      acquired = await media.getUserMedia({ audio: false, video: constraints });
+      const acquired = await media.getUserMedia({ audio: false, video: constraints });
       if (request !== generation) {
         acquired.getTracks().forEach(track => track.stop());
         return;
@@ -121,7 +118,7 @@
       const track = stream.getVideoTracks()[0];
       track.onended = () => {
         if (stream === acquired) {
-          stop('カメラの接続が終了しました。USB接続や他のアプリの使用状況を確認して、再度開始してください。', true);
+          stop('カメラの接続が終了しました');
           void refreshDevices();
         }
       };
@@ -129,56 +126,91 @@
       await video.play();
       if (request !== generation) return;
       starting = false;
-      status('カメラを開始しました。プレビューを確認して「静止画を撮影」を押してください。');
       controls();
       await refreshDevices();
     } catch (error) {
       if (request !== generation) return;
-      stop(errors[error.name] || 'カメラを開始できません。接続と権限を確認して、もう一度お試しください。', true);
+      stop(errors[error.name] || 'カメラを開始できません');
+      await refreshDevices();
     }
   }
 
-  function clearPhoto() {
+  function deletePhoto(id) {
+    const photo = photos.get(id);
+    if (!photo) return;
+    URL.revokeObjectURL(photo.url);
+    photo.card.remove();
+    photos.delete(id);
+    photoControls();
+  }
+
+  function clearPhotos() {
     photoGeneration++;
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
-    photoUrl = null;
-    $('photo').removeAttribute('src');
-    $('photo').hidden = true;
-    $('photo-placeholder').hidden = false;
-    $('download-link').hidden = true;
-    $('download-link').removeAttribute('href');
-    $('clear-button').disabled = true;
-    $('photo-info').textContent = '撮影し直すと、前の写真は置き換わります。';
+    for (const id of photos.keys()) deletePhoto(id);
   }
 
   async function capture() {
-    if (!stream || video.readyState < 2 || !video.videoWidth || capturing) return;
+    if (!stream || starting || video.readyState < 2 || !video.videoWidth || capturing) return;
     capturing = true;
     controls();
-    const request = ++photoGeneration;
+    const request = photoGeneration;
+    const date = new Date();
     try {
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0);
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
       if (request !== photoGeneration) return;
-      if (!blob) throw new Error('PNG encoding failed');
-      if (photoUrl) URL.revokeObjectURL(photoUrl);
-      photoUrl = URL.createObjectURL(blob);
-      const date = new Date();
+      if (!blob || blob.type !== 'image/jpeg') throw new Error('JPEG encoding failed');
+      const id = ++photoSequence;
+      const url = URL.createObjectURL(blob);
       const stamp = [date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()].map(n => String(n).padStart(2, '0')).join('-');
-      $('photo').src = photoUrl;
-      $('photo').hidden = false;
-      $('photo-placeholder').hidden = true;
-      $('download-link').href = photoUrl;
-      $('download-link').download = `migaku-camera-${stamp}.png`;
-      $('download-link').hidden = false;
-      $('clear-button').disabled = false;
-      $('photo-info').textContent = `${canvas.width} × ${canvas.height} px ・ ${date.toLocaleTimeString('ja-JP')} 撮影`;
-      $('photo-status').textContent = '撮影しました。内容を確認してPNGをダウンロードしてください。';
+      const card = document.createElement('li');
+      card.className = 'photo-card';
+      card.dataset.photoId = id;
+      const image = document.createElement('img');
+      image.className = 'photo-image';
+      image.alt = `撮影画像 ${id}`;
+      image.width = canvas.width;
+      image.height = canvas.height;
+      image.loading = 'lazy';
+      image.src = url;
+      const meta = document.createElement('div');
+      meta.className = 'photo-meta';
+      const size = document.createElement('span');
+      size.textContent = `${canvas.width} × ${canvas.height} px`;
+      const time = document.createElement('time');
+      time.dateTime = date.toISOString();
+      time.textContent = date.toLocaleTimeString('ja-JP');
+      meta.append(size, time);
+      const actions = document.createElement('div');
+      actions.className = 'photo-actions';
+      const download = document.createElement('a');
+      download.className = 'button primary download';
+      download.href = url;
+      download.download = `migaku-camera-${stamp}-${String(date.getMilliseconds()).padStart(3, '0')}-${id}.jpg`;
+      download.textContent = 'JPGをダウンロード';
+      download.setAttribute('aria-label', `撮影画像 ${id} をJPGでダウンロード`);
+      const remove = document.createElement('button');
+      remove.className = 'button subtle delete-photo';
+      remove.type = 'button';
+      remove.textContent = '削除';
+      remove.setAttribute('aria-label', `撮影画像 ${id} を削除`);
+      remove.addEventListener('click', () => {
+        const next = card.nextElementSibling || card.previousElementSibling;
+        deletePhoto(id);
+        (next?.querySelector('.delete-photo') || captureButton).focus();
+        $('photo-announcement').textContent = `${photos.size}枚`;
+      });
+      actions.append(download, remove);
+      card.append(image, meta, actions);
+      photos.set(id, { url, card });
+      $('photo-list').prepend(card);
+      photoControls();
+      $('photo-announcement').textContent = `${photos.size}枚`;
     } catch {
-      $('photo-status').textContent = '画像を作成できませんでした。もう一度撮影してください。';
+      status('画像を作成できません');
     } finally {
       capturing = false;
       controls();
@@ -190,17 +222,17 @@
   captureButton.addEventListener('click', () => void capture());
   $('refresh-button').addEventListener('click', () => void refreshDevices(true));
   camera.addEventListener('change', () => { if (stream) void start(); });
-  resolution.addEventListener('change', () => { if (stream) void start(); });
-  $('clear-button').addEventListener('click', () => { clearPhoto(); $('photo-status').textContent = '写真を消去しました。'; });
+  $('clear-button').addEventListener('click', () => { clearPhotos(); $('photo-announcement').textContent = '0枚'; });
   video.addEventListener('loadeddata', controls);
   video.addEventListener('resize', controls);
-  window.addEventListener('pagehide', () => { stop(); clearPhoto(); });
-  window.addEventListener('pageshow', event => { if (supported && event.persisted) void refreshDevices(true); });
+  window.addEventListener('pagehide', () => { stop(); clearPhotos(); });
+  window.addEventListener('pageshow', event => { if (supported && event.persisted) void start(true); });
   if (supported) {
-    media.addEventListener('devicechange', () => void refreshDevices(true));
-    void refreshDevices(true);
+    media.addEventListener('devicechange', () => void refreshDevices());
+    void start(true);
   } else {
-    status(window.isSecureContext ? 'このブラウザーはカメラ機能に対応していません。最新版のChromeまたはEdgeをお使いください。' : 'カメラを使用するにはHTTPSでこのページを開いてください。', true);
+    status(window.isSecureContext ? 'カメラ機能に対応していません' : 'HTTPSが必要です');
   }
   controls();
+  photoControls();
 })();

@@ -5,42 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src blob: data:; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
-  <title>みがくカメラ | USBカメラで静止画撮影</title>
+  <title>みがくカメラ</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
   <script src="app.js" defer></script>
 </head>
 <body>
-  <header class="site-header">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">◎</span>みがくカメラ</div>
-    <span class="privacy-badge">映像・画像は端末内だけで処理</span>
-  </header>
-  <main>
-    <div class="intro"><p class="eyebrow">USB CAMERA / SNAPSHOT</p><h1>映して、撮って、保存する。</h1><p>USBカメラで撮影した一枚を、そのままPNGに。<br>映像や画像がサーバーへ送信されることはありません。</p></div>
-    <div class="workspace">
-      <section class="panel camera-panel" aria-labelledby="camera-heading">
-        <div class="panel-heading"><h2 id="camera-heading">ライブプレビュー</h2><span id="live-badge" class="state-badge">停止中</span></div>
-        <div class="camera-settings">
-          <div class="field"><label for="camera-select">使用するカメラ</label><div class="camera-picker"><select id="camera-select" aria-describedby="camera-help"><option value="">カメラを確認しています…</option></select><button id="refresh-button" class="button subtle" type="button">再検出</button></div><p id="camera-help" class="hint">開始するとカメラの使用許可を求められます。</p></div>
-          <div class="field"><label for="resolution-select">解像度</label><select id="resolution-select"><option value="default">カメラの標準</option><option value="qvga">320 × 240</option><option value="vga">640 × 480</option><option value="hd">1280 × 720</option><option value="fullhd">1920 × 1080</option></select></div>
-        </div>
-        <div class="preview"><video id="video" autoplay muted playsinline aria-label="カメラのライブ映像" hidden></video><div id="preview-placeholder" class="placeholder"><span class="placeholder-icon" aria-hidden="true">◎</span><strong>撮影の準備をしましょう</strong><span>カメラを選び「カメラを開始」を押してください。</span></div></div>
-        <div class="preview-footer"><span id="video-size">映像なし</span><span>音声は取得しません</span></div>
-        <div class="camera-actions"><button id="start-button" class="button primary" type="button" disabled>カメラを開始</button><button id="stop-button" class="button secondary" type="button" disabled>停止</button><button id="capture-button" class="button capture" type="button" disabled><span aria-hidden="true">●</span> 静止画を撮影</button></div>
-        <p id="status" class="status" role="status" aria-live="polite">カメラを確認しています…</p>
-      </section>
-      <section class="panel photo-panel" aria-labelledby="photo-heading">
-        <div class="panel-heading"><h2 id="photo-heading">撮影した静止画</h2><span class="format-badge">PNG</span></div>
-        <div class="photo-preview"><img id="photo" alt="撮影した静止画" hidden><div id="photo-placeholder" class="placeholder"><span class="placeholder-icon" aria-hidden="true">▧</span><strong>ここに写真が表示されます</strong><span>撮影後、内容を確認して保存できます。</span></div></div>
-        <p id="photo-info" class="hint">撮影し直すと、前の写真は置き換わります。</p>
-        <a id="download-link" class="button primary download" hidden>PNGをダウンロード</a>
-        <button id="clear-button" class="button subtle clear" type="button" disabled>写真を消去</button>
-        <p id="photo-status" class="hint" role="status" aria-live="polite"></p>
-      </section>
-    </div>
-    <section class="guide" aria-labelledby="guide-heading"><h2 id="guide-heading">はじめて使うとき</h2><ol><li><span>01</span><div><strong>カメラを接続</strong><p>USBカメラをPCに接続して、一覧から選択します。</p></div></li><li><span>02</span><div><strong>使用を許可して撮影</strong><p>カメラを開始し、ブラウザーの許可画面で「許可」を選びます。</p></div></li><li><span>03</span><div><strong>PNGで保存</strong><p>写真を確認してダウンロード。終了時は「停止」を押します。</p></div></li></ol></section>
-    <details class="troubleshooting"><summary>カメラが使えないとき</summary><ul><li>未接続：USBケーブルと接続先を確認し「再検出」を押してください。</li><li>権限拒否：アドレスバーのサイト設定でカメラを許可し、もう一度開始してください。OSのカメラ権限も確認してください。</li><li>使用中：会議アプリや他のタブでカメラを停止してから、もう一度開始してください。</li><li>解像度が非対応：「カメラの標準」を選んで再開してください。</li><li>このアプリはHTTPSとカメラAPIに対応するブラウザーが必要です。PC版Chrome・Edgeの最新版を推奨します。</li></ul></details>
-    <footer>画像は自動保存されません。ページを閉じる前にダウンロードしてください。</footer>
+  <header class="site-header"><h1 class="brand"><span class="brand-mark" aria-hidden="true">◎</span>みがくカメラ</h1></header>
+  <main class="workspace">
+    <section class="panel camera-panel" aria-labelledby="camera-heading">
+      <div class="panel-heading"><h2 id="camera-heading">ライブプレビュー</h2><span id="live-badge" class="state-badge">準備中</span></div>
+      <div class="camera-settings"><label for="camera-select">カメラ</label><div class="camera-picker"><select id="camera-select"><option value="">検出中</option></select><button id="refresh-button" class="button subtle" type="button" disabled>再検出</button></div></div>
+      <div class="preview"><video id="video" autoplay muted playsinline aria-label="カメラのライブ映像" hidden></video><span id="preview-placeholder" class="placeholder-icon" aria-hidden="true">◎</span></div>
+      <div id="video-size" class="video-size"></div>
+      <div class="camera-actions"><button id="start-button" class="button primary" type="button" disabled>開始</button><button id="stop-button" class="button secondary" type="button" disabled>停止</button><button id="capture-button" class="button capture" type="button" disabled><span aria-hidden="true">●</span> 撮影</button></div>
+      <p id="status" class="status" role="status" aria-live="polite" hidden></p>
+    </section>
+    <section class="panel photo-panel" aria-labelledby="photo-heading">
+      <div class="panel-heading"><h2 id="photo-heading">撮影画像 <span id="photo-count" class="photo-count">0</span></h2><span class="format-badge">JPG</span></div>
+      <div id="photo-placeholder" class="photo-empty"><span class="placeholder-icon" aria-hidden="true">▧</span></div>
+      <ol id="photo-list" class="photo-list" aria-label="撮影画像一覧"></ol>
+      <button id="clear-button" class="button subtle clear" type="button" disabled>すべて削除</button>
+      <output id="photo-announcement" class="sr-only" aria-live="polite"></output>
+    </section>
   </main>
 </body>
 </html>
