@@ -336,13 +336,39 @@ class CameraBrowserTests(unittest.TestCase):
         finally:
             browser.close()
 
-    def test_desktop_gallery_is_on_right(self):
-        self.page.set_viewport_size({'width': 1440, 'height': 1050})
+    def test_full_viewport_video_and_independent_overlay_scroll(self):
+        self.page.set_viewport_size({'width': 1440, 'height': 600})
         self.open()
-        self.capture()
+        for _ in range(3):
+            self.capture()
+        video = self.page.locator('#video').bounding_box()
+        self.assertEqual(video, {'x': 0, 'y': 0, 'width': 1440, 'height': 600})
         camera = self.page.locator('.camera-panel').bounding_box()
         gallery = self.page.locator('.photo-panel').bounding_box()
         self.assertGreater(gallery['x'], camera['x'] + camera['width'])
+        self.assertTrue(self.page.evaluate("() => {const p=document.querySelector('.camera-panel'),r=p.getBoundingClientRect();return p.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}"))
+        self.assertTrue(self.page.evaluate("() => {const p=document.querySelector('.photo-panel'),r=p.getBoundingClientRect();return p.contains(document.elementFromPoint(r.x+r.width/2,r.y+20));}"))
+        self.page.evaluate("document.querySelector('.photo-panel').scrollTop = 9999")
+        self.assertGreater(self.page.evaluate("document.querySelector('.photo-panel').scrollTop"), 0)
+        expect(self.page.locator('#capture-button')).to_be_in_viewport()
+        self.assertEqual(self.page.locator('#video').bounding_box(), video)
+        self.capture()
+        self.assertEqual(self.page.evaluate("document.querySelector('.photo-panel').scrollTop"), 0)
+        self.assertTrue(self.page.evaluate('document.documentElement.scrollHeight <= innerHeight'))
+
+    def test_gallery_toggle_preserves_camera_and_photos(self):
+        self.open()
+        self.capture()
+        self.page.locator('#gallery-toggle').click()
+        expect(self.page.locator('#photo-panel')).to_be_hidden()
+        expect(self.page.locator('#gallery-toggle')).to_have_attribute('aria-expanded', 'false')
+        self.assertEqual(self.page.evaluate("testStreams[0].getVideoTracks()[0].readyState"), 'live')
+        self.page.locator('#capture-button').click()
+        expect(self.page.locator('.photo-card')).to_have_count(2)
+        self.page.locator('#gallery-toggle').click()
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('#gallery-toggle')).to_have_attribute('aria-expanded', 'true')
+        expect(self.page.locator('#photo-count')).to_have_text('2')
 
     def test_mobile_layout(self):
         self.page.set_viewport_size({'width': 375, 'height': 812})
@@ -352,6 +378,18 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
         self.page.locator('.download').first.scroll_into_view_if_needed()
         expect(self.page.locator('.download').first).to_be_in_viewport()
+        for width, height in [(375, 812), (320, 568), (667, 375)]:
+            with self.subTest(viewport=(width, height)):
+                self.page.set_viewport_size({'width': width, 'height': height})
+                self.assertEqual(self.page.locator('#video').bounding_box(), {'x': 0, 'y': 0, 'width': width, 'height': height})
+                camera = self.page.locator('.camera-panel').bounding_box()
+                gallery = self.page.locator('.photo-panel').bounding_box()
+                actions = self.page.locator('.camera-actions').bounding_box()
+                self.assertGreater(gallery['x'], camera['x'] + camera['width'])
+                self.assertLessEqual(camera['y'] + camera['height'], actions['y'])
+                self.assertLessEqual(gallery['y'] + gallery['height'], actions['y'])
+                expect(self.page.locator('#capture-button')).to_be_in_viewport()
+                self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight'))
 
 
 if __name__ == '__main__':

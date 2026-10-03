@@ -190,7 +190,7 @@
       download.className = 'button primary download';
       download.href = url;
       download.download = `migaku-camera-${stamp}-${String(date.getMilliseconds()).padStart(3, '0')}-${id}.jpg`;
-      download.textContent = 'JPGをダウンロード';
+      download.textContent = 'JPG保存';
       download.setAttribute('aria-label', `撮影画像 ${id} をJPGでダウンロード`);
       const remove = document.createElement('button');
       remove.className = 'button subtle delete-photo';
@@ -207,6 +207,7 @@
       card.append(image, meta, actions);
       photos.set(id, { url, card });
       $('photo-list').prepend(card);
+      $('photo-panel').scrollTop = 0;
       photoControls();
       $('photo-announcement').textContent = `${photos.size}枚`;
     } catch {
@@ -223,6 +224,11 @@
   $('refresh-button').addEventListener('click', () => void refreshDevices(true));
   camera.addEventListener('change', () => { if (stream) void start(); });
   $('clear-button').addEventListener('click', () => { clearPhotos(); $('photo-announcement').textContent = '0枚'; });
+  $('gallery-toggle').addEventListener('click', () => {
+    const panel = $('photo-panel');
+    panel.hidden = !panel.hidden;
+    $('gallery-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+  });
   video.addEventListener('loadeddata', controls);
   video.addEventListener('resize', controls);
   window.addEventListener('pagehide', () => { stop(); clearPhotos(); });
