@@ -201,9 +201,9 @@ class CameraBrowserTests(unittest.TestCase):
           source.start();
           const result = await offline.startRendering();
           return {peak: Math.max(...result.getChannelData(0).map(Math.abs)), matches};
-        }""", base64.b64encode((ROOT / 'third_party/android/camera-shutter.wav').read_bytes()).decode())
+        }""", base64.b64encode((ROOT / 'third_party/shutter/camera-shutter.wav').read_bytes()).decode())
         self.assertGreater(rendered['peak'], 0.01)
-        self.assertTrue(rendered['matches'], 'Playback must use the bundled Android camera sound')
+        self.assertTrue(rendered['matches'], 'Playback must use the bundled camera shutter recording')
         self.page.evaluate('() => { HTMLCanvasElement.prototype.toBlob = callback => callback(null); }')
         self.click_video()
         expect(self.page.locator('#status')).to_have_text('画像を作成できません')

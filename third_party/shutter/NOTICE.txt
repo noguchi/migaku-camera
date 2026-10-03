@@ -1,0 +1,20 @@
+camera-shutter — Freedesktop Sound Theme
+Copyright: freesound user horsthorstensen
+Original recording: https://freesound.org/s/72714/
+
+License: Creative Commons Attribution-ShareAlike 3.0 Unported (CC-BY-SA-3.0).
+https://creativecommons.org/licenses/by-sa/3.0/
+See CC-BY-SA-3.0.txt for the license text. This license applies to the
+audio recording, the adapted WAV and the embedded audio data in shutter-sound.js.
+
+Source: https://github.com/codacy-open-source-projects-scans/sound-theme-freedesktop/blob/master/stereo/camera-shutter.oga
+Source Git blob: b51a467e67285a1817ff32a2546039f3fea8ced5
+Upstream CREDITS confirms permission to relicense this sample as CC-BY-SA.
+License version documented in:
+https://github.com/deepin-community/sound-theme-freedesktop/blob/master/debian/copyright
+
+Changes by migaku-camera: resampled to mono 22050 Hz, 16-bit PCM WAV,
+trimmed quiet trailing audio, normalized peak to 0.7 and faded the last 10 ms.
+The adapted sound is distributed under CC-BY-SA-3.0.
+The waveform is bundled as base64 in shutter-sound.js; playback requires no
+external audio requests. No affiliation or endorsement by the artist is implied.
