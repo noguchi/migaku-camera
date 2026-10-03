@@ -8,6 +8,7 @@
   --gallery-width: 320px;
 }
 * { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; }
 body {
   margin: 0;
   background: #0a161b;
@@ -17,12 +18,31 @@ body {
   line-height: 1.7;
   overflow: hidden;
 }
-.workspace, .preview { position: fixed; inset: 0; }
-.preview { display: grid; place-items: center; background: #0a161b; }
-.preview video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
-.preview > .placeholder-icon { position: absolute; font-size: 80px; }
-.site-header {
+.camera-stage {
   position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  isolation: isolate;
+  background: #0a161b;
+}
+#video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  object-fit: cover;
+}
+.preview-placeholder { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 80px; }
+.overlay-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+.overlay-layer .panel { pointer-events: auto; }
+.site-header {
+  position: absolute;
   z-index: 2;
   inset: var(--edge) var(--edge) auto;
   display: flex;
@@ -44,7 +64,7 @@ body {
 }
 .brand-mark { color: var(--green); font-size: 32px; line-height: 1; }
 .panel {
-  position: fixed;
+  position: absolute;
   z-index: 1;
   background: #0e191fce;
   border: 1px solid var(--line);

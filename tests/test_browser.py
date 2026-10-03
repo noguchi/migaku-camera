@@ -343,6 +343,9 @@ class CameraBrowserTests(unittest.TestCase):
             self.capture()
         video = self.page.locator('#video').bounding_box()
         self.assertEqual(video, {'x': 0, 'y': 0, 'width': 1440, 'height': 600})
+        self.assertEqual(self.page.locator('#camera-stage').bounding_box(), video)
+        self.assertEqual(self.page.locator('#overlay-layer').bounding_box(), video)
+        self.assertEqual(self.page.evaluate("document.elementFromPoint(innerWidth / 2, innerHeight / 2).id"), 'video')
         camera = self.page.locator('.camera-panel').bounding_box()
         gallery = self.page.locator('.photo-panel').bounding_box()
         self.assertGreater(gallery['x'], camera['x'] + camera['width'])
@@ -369,6 +372,57 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('#photo-panel')).to_be_visible()
         expect(self.page.locator('#gallery-toggle')).to_have_attribute('aria-expanded', 'true')
         expect(self.page.locator('#photo-count')).to_have_text('2')
+
+    def test_previous_cached_assets_do_not_break_new_layout(self):
+        class CachedHandler(QuietHandler):
+            legacy_css_requests = 0
+            legacy_js_requests = 0
+
+            def do_GET(self):
+                path = urlsplit(self.path)
+                if path.path == '/previous.html':
+                    body = b'<html><head><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css"><script src="app.js"></script></head><body><video id="old-video"></video></body></html>'
+                    content_type = 'text/html'
+                elif path.path == '/style.css' and not path.query:
+                    type(self).legacy_css_requests += 1
+                    body = b'video { width: 320px; height: 240px; }'
+                    content_type = 'text/css'
+                elif path.path == '/app.js' and not path.query:
+                    type(self).legacy_js_requests += 1
+                    body = b'window.previousScriptLoaded = true;'
+                    content_type = 'application/javascript'
+                else:
+                    return super().do_GET()
+                self.send_response(200)
+                self.send_header('Content-Type', content_type)
+                self.send_header('Content-Length', str(len(body)))
+                self.send_header('Cache-Control', 'public, max-age=31536000')
+                self.end_headers()
+                self.wfile.write(body)
+
+        handler = functools.partial(CachedHandler, directory=str(ROOT))
+        server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{server.server_port}/'
+        try:
+            self.page.set_viewport_size({'width': 1280, 'height': 720})
+            self.page.goto(base + 'previous.html')
+            self.assertTrue(self.page.evaluate('previousScriptLoaded'))
+            self.assertEqual(self.page.locator('#old-video').bounding_box()['width'], 320)
+            self.page.goto(base + 'previous.html')
+            self.assertEqual(CachedHandler.legacy_css_requests, 1)
+            self.assertEqual(CachedHandler.legacy_js_requests, 1)
+            self.page.goto(base)
+            expect(self.page.locator('#capture-button')).to_be_enabled(timeout=10000)
+            self.assertEqual(self.page.locator('#video').bounding_box(), {'x': 0, 'y': 0, 'width': 1280, 'height': 720})
+            self.assertFalse(self.page.evaluate('Boolean(window.previousScriptLoaded)'))
+            self.assertEqual(CachedHandler.legacy_css_requests, 1)
+            self.assertEqual(CachedHandler.legacy_js_requests, 1)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
 
     def test_mobile_layout(self):
         self.page.set_viewport_size({'width': 375, 'height': 812})

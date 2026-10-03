@@ -2,37 +2,40 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src blob: data:; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <title>みがくカメラ</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css">
-  <script src="app.js" defer></script>
+  <link rel="stylesheet" href="style.css?v=fullpage-2">
+  <script src="app.js?v=fullpage-2" defer></script>
 </head>
 <body>
-  <header class="site-header">
-    <h1 class="brand"><span class="brand-mark" aria-hidden="true">◎</span>みがくカメラ</h1>
-    <button id="gallery-toggle" class="button secondary" type="button" aria-controls="photo-panel" aria-expanded="true">画像</button>
-  </header>
-  <main class="workspace">
-    <div class="preview"><video id="video" autoplay muted playsinline aria-label="カメラのライブ映像" hidden></video><span id="preview-placeholder" class="placeholder-icon" aria-hidden="true">◎</span></div>
-    <section class="panel camera-panel" aria-labelledby="camera-heading">
-      <div class="panel-heading"><h2 id="camera-heading">カメラ</h2><span id="live-badge" class="state-badge">準備中</span></div>
-      <div class="camera-settings"><label for="camera-select" class="sr-only">カメラ</label><div class="camera-picker"><select id="camera-select"><option value="">検出中</option></select><button id="refresh-button" class="button subtle" type="button" disabled>再検出</button></div></div>
-      <div id="video-size" class="video-size"></div>
-      <p id="status" class="status" role="status" aria-live="polite" hidden></p>
-    </section>
-    <div class="panel camera-actions" role="group" aria-label="カメラ操作">
-      <button id="start-button" class="button secondary" type="button" disabled>開始</button><button id="stop-button" class="button secondary" type="button" disabled>停止</button><button id="capture-button" class="button capture" type="button" disabled><span aria-hidden="true">●</span> 撮影</button>
+  <main id="camera-stage" class="camera-stage">
+    <video id="video" autoplay muted playsinline aria-label="カメラのライブ映像" hidden></video>
+    <span id="preview-placeholder" class="preview-placeholder placeholder-icon" aria-hidden="true">◎</span>
+    <div id="overlay-layer" class="overlay-layer">
+      <header class="site-header">
+        <h1 class="brand"><span class="brand-mark" aria-hidden="true">◎</span>みがくカメラ</h1>
+        <button id="gallery-toggle" class="button secondary" type="button" aria-controls="photo-panel" aria-expanded="true">画像</button>
+      </header>
+      <section class="panel camera-panel" aria-labelledby="camera-heading">
+        <div class="panel-heading"><h2 id="camera-heading">カメラ</h2><span id="live-badge" class="state-badge">準備中</span></div>
+        <div class="camera-settings"><label for="camera-select" class="sr-only">カメラ</label><div class="camera-picker"><select id="camera-select"><option value="">検出中</option></select><button id="refresh-button" class="button subtle" type="button" disabled>再検出</button></div></div>
+        <div id="video-size" class="video-size"></div>
+        <p id="status" class="status" role="status" aria-live="polite" hidden></p>
+      </section>
+      <div class="panel camera-actions" role="group" aria-label="カメラ操作">
+        <button id="start-button" class="button secondary" type="button" disabled>開始</button><button id="stop-button" class="button secondary" type="button" disabled>停止</button><button id="capture-button" class="button capture" type="button" disabled><span aria-hidden="true">●</span> 撮影</button>
+      </div>
+      <section id="photo-panel" class="panel photo-panel" aria-labelledby="photo-heading">
+        <div class="panel-heading"><h2 id="photo-heading">撮影画像 <span id="photo-count" class="photo-count">0</span></h2><span class="format-badge">JPG</span></div>
+        <div id="photo-placeholder" class="photo-empty"><span class="placeholder-icon" aria-hidden="true">▧</span></div>
+        <ol id="photo-list" class="photo-list" aria-label="撮影画像一覧"></ol>
+        <button id="clear-button" class="button subtle clear" type="button" disabled>すべて削除</button>
+        <output id="photo-announcement" class="sr-only" aria-live="polite"></output>
+      </section>
     </div>
-    <section id="photo-panel" class="panel photo-panel" aria-labelledby="photo-heading">
-      <div class="panel-heading"><h2 id="photo-heading">撮影画像 <span id="photo-count" class="photo-count">0</span></h2><span class="format-badge">JPG</span></div>
-      <div id="photo-placeholder" class="photo-empty"><span class="placeholder-icon" aria-hidden="true">▧</span></div>
-      <ol id="photo-list" class="photo-list" aria-label="撮影画像一覧"></ol>
-      <button id="clear-button" class="button subtle clear" type="button" disabled>すべて削除</button>
-      <output id="photo-announcement" class="sr-only" aria-live="polite"></output>
-    </section>
   </main>
 </body>
 </html>
