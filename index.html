@@ -1,143 +1,46 @@
+<!doctype html>
 <html lang="ja">
-
 <head>
-
-  <meta charset="UTF-8">
-  <title>みがくカメラ</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src blob: data:; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>みがくカメラ | USBカメラで静止画撮影</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
 </head>
-
 <body>
-  <h1>みがくカメラ</h1>
-
-  <div class="select">
-
-    <label for="videoSource">カメラ: </label>
-    <select id="videoSource"></select>
-
-  </div>
-
-  <div class="select">
-    <label for="videoResolution">解像度: </label>
-
-    <select id="videoResolution">
-
-      <option value="default">デフォルト</option>
-      <option value="qvga">QVGA (320x240)</option>
-
-      <option value="vga">VGA (640x480)</option>
-      <option value="hd">HD (1280x720)</option>
-
-      <option value="fullhd">Full HD (1920x1080)</option>
-
-    </select>
-
-  </div>
-
-  <video autoplay muted playsinline></video>
-
+  <header class="site-header">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◎</span>みがくカメラ</div>
+    <span class="privacy-badge">映像・画像は端末内だけで処理</span>
+  </header>
+  <main>
+    <div class="intro"><p class="eyebrow">USB CAMERA / SNAPSHOT</p><h1>映して、撮って、保存する。</h1><p>USBカメラで撮影した一枚を、そのままPNGに。<br>映像や画像がサーバーへ送信されることはありません。</p></div>
+    <div class="workspace">
+      <section class="panel camera-panel" aria-labelledby="camera-heading">
+        <div class="panel-heading"><h2 id="camera-heading">ライブプレビュー</h2><span id="live-badge" class="state-badge">停止中</span></div>
+        <div class="camera-settings">
+          <div class="field"><label for="camera-select">使用するカメラ</label><div class="camera-picker"><select id="camera-select" aria-describedby="camera-help"><option value="">カメラを確認しています…</option></select><button id="refresh-button" class="button subtle" type="button">再検出</button></div><p id="camera-help" class="hint">開始するとカメラの使用許可を求められます。</p></div>
+          <div class="field"><label for="resolution-select">解像度</label><select id="resolution-select"><option value="default">カメラの標準</option><option value="qvga">320 × 240</option><option value="vga">640 × 480</option><option value="hd">1280 × 720</option><option value="fullhd">1920 × 1080</option></select></div>
+        </div>
+        <div class="preview"><video id="video" autoplay muted playsinline aria-label="カメラのライブ映像" hidden></video><div id="preview-placeholder" class="placeholder"><span class="placeholder-icon" aria-hidden="true">◎</span><strong>撮影の準備をしましょう</strong><span>カメラを選び「カメラを開始」を押してください。</span></div></div>
+        <div class="preview-footer"><span id="video-size">映像なし</span><span>音声は取得しません</span></div>
+        <div class="camera-actions"><button id="start-button" class="button primary" type="button" disabled>カメラを開始</button><button id="stop-button" class="button secondary" type="button" disabled>停止</button><button id="capture-button" class="button capture" type="button" disabled><span aria-hidden="true">●</span> 静止画を撮影</button></div>
+        <p id="status" class="status" role="status" aria-live="polite">カメラを確認しています…</p>
+      </section>
+      <section class="panel photo-panel" aria-labelledby="photo-heading">
+        <div class="panel-heading"><h2 id="photo-heading">撮影した静止画</h2><span class="format-badge">PNG</span></div>
+        <div class="photo-preview"><img id="photo" alt="撮影した静止画" hidden><div id="photo-placeholder" class="placeholder"><span class="placeholder-icon" aria-hidden="true">▧</span><strong>ここに写真が表示されます</strong><span>撮影後、内容を確認して保存できます。</span></div></div>
+        <p id="photo-info" class="hint">撮影し直すと、前の写真は置き換わります。</p>
+        <a id="download-link" class="button primary download" hidden>PNGをダウンロード</a>
+        <button id="clear-button" class="button subtle clear" type="button" disabled>写真を消去</button>
+        <p id="photo-status" class="hint" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+    <section class="guide" aria-labelledby="guide-heading"><h2 id="guide-heading">はじめて使うとき</h2><ol><li><span>01</span><div><strong>カメラを接続</strong><p>USBカメラをPCに接続して、一覧から選択します。</p></div></li><li><span>02</span><div><strong>使用を許可して撮影</strong><p>カメラを開始し、ブラウザーの許可画面で「許可」を選びます。</p></div></li><li><span>03</span><div><strong>PNGで保存</strong><p>写真を確認してダウンロード。終了時は「停止」を押します。</p></div></li></ol></section>
+    <details class="troubleshooting"><summary>カメラが使えないとき</summary><ul><li>未接続：USBケーブルと接続先を確認し「再検出」を押してください。</li><li>権限拒否：アドレスバーのサイト設定でカメラを許可し、もう一度開始してください。OSのカメラ権限も確認してください。</li><li>使用中：会議アプリや他のタブでカメラを停止してから、もう一度開始してください。</li><li>解像度が非対応：「カメラの標準」を選んで再開してください。</li><li>このアプリはHTTPSとカメラAPIに対応するブラウザーが必要です。PC版Chrome・Edgeの最新版を推奨します。</li></ul></details>
+    <footer>画像は自動保存されません。ページを閉じる前にダウンロードしてください。</footer>
+  </main>
 </body>
-<script>
-
-  'use strict';
-
-
-  var videoElement = document.querySelector('video');
-  var videoSelect = document.querySelector('select#videoSource');
-  var resolutionSelect = document.querySelector('select#videoResolution');
-
-
-  videoSelect.onchange = getStream;
-
-  resolutionSelect.onchange = getStream;
-
-
-  getStream().then(getDevices).then(gotDevices);
-
-
-  function getDevices() {
-    return navigator.mediaDevices.enumerateDevices();
-  }
-
-
-  function gotDevices(deviceInfos) {
-    window.deviceInfos = deviceInfos;
-
-    for (const deviceInfo of deviceInfos) {
-
-      const option = document.createElement('option');
-      option.value = deviceInfo.deviceId;
-
-      if (deviceInfo.kind === 'videoinput') {
-
-        option.text = deviceInfo.label || `Camera ${videoSelect.length + 1}`;
-
-        videoSelect.appendChild(option);
-      }
-
-    }
-
-  }
-
-
-  function getStream() {
-    if (window.stream) {
-      window.stream.getTracks().forEach(track => {
-
-        track.stop();
-      });
-    }
-    const videoSource = videoSelect.value;
-
-    const resolution = resolutionSelect.value;
-
-    let constraints = {
-
-      video: { deviceId: videoSource ? { exact: videoSource } : undefined }
-
-    };
-
-
-    if (resolution !== 'default') {
-
-      const resolutionConstraints = {
-
-        qvga: { width: { exact: 320 }, height: { exact: 240 } },
-
-        vga: { width: { exact: 640 }, height: { exact: 480 } },
-
-        hd: { width: { exact: 1280 }, height: { exact: 720 } },
-
-        fullhd: { width: { exact: 1920 }, height: { exact: 1080 } }
-
-      };
-
-      constraints.video = { ...constraints.video, ...resolutionConstraints[resolution] };
-
-    }
-
-    return navigator.mediaDevices.getUserMedia(constraints).
-
-      then(gotStream).catch(handleError);
-  }
-
-
-  function gotStream(stream) {
-
-    window.stream = stream;
-    videoSelect.selectedIndex = [...videoSelect.options].
-
-      findIndex(option => option.text === stream.getVideoTracks()[0].label);
-
-    videoElement.srcObject = stream;
-
-  }
-
-
-  function handleError(error) {
-    console.error('Error: ', error);
-
-  }
-
-</script>
-
 </html>
