@@ -1,0 +1,14 @@
+Android camera shutter sound
+Copyright 2005-2008 The Android Open Source Project
+
+This product includes software developed as part of
+The Android Open Source Project (https://source.android.com).
+
+Source: https://github.com/aosp-mirror/platform_frameworks_base/blob/main/data/sounds/effects/ogg/camera_click_48k.ogg
+Source Git blob: b836e109480b21a4310eb13d9621d92c76f4cdfe
+License: Apache License 2.0 (see Apache-2.0.txt).
+The source package declares Android-Apache-2.0 in data/sounds/Android.bp.
+
+Changes: decoded Vorbis audio and resampled to mono, 22050 Hz, 16-bit PCM WAV
+with FFmpeg for browser compatibility. The waveform is bundled as base64
+in shutter-sound.js for playback without network requests for audio.

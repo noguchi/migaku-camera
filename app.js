@@ -15,6 +15,7 @@
   let photoGeneration = 0;
   let photoSequence = 0;
   let audioContext = null;
+  let shutterBuffer = null;
   let pageActive = true;
 
   function status(message = '') {
@@ -157,25 +158,21 @@
       audioContext ||= new Audio();
       // Resume during the click/key gesture, before JPEG encoding yields.
       const context = audioContext;
-      return context.resume().then(() => context).catch(() => null);
+      const resumed = context.resume().catch(() => {});
+      if (!shutterBuffer) {
+        const bytes = Uint8Array.from(atob(window.MIGAKU_SHUTTER_WAV_BASE64), char => char.charCodeAt(0));
+        shutterBuffer = context.decodeAudioData(bytes.buffer).catch(() => null);
+      }
+      return Promise.all([resumed, shutterBuffer]).then(([, buffer]) => buffer ? { context, buffer } : null).catch(() => null);
     } catch {
       return null;
     }
   }
 
-  function playShutter(context) {
-    if (!context || context.state !== 'running') return;
+  function playShutter(sound) {
+    if (!sound || sound.context.state !== 'running') return;
     try {
-      const duration = 0.14;
-      const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
-      const samples = buffer.getChannelData(0);
-      // Two short, decaying noise bursts imitate a mechanical shutter.
-      for (let i = 0; i < samples.length; i++) {
-        const time = i / context.sampleRate;
-        const onset = time < 0.065 ? 0 : 0.065;
-        const elapsed = time - onset;
-        samples[i] = elapsed < 0.045 ? (Math.random() * 2 - 1) * 0.35 * Math.exp(-elapsed * 110) : 0;
-      }
+      const { context, buffer } = sound;
       const source = context.createBufferSource();
       source.buffer = buffer;
       source.connect(context.destination);
@@ -248,8 +245,8 @@
       $('photo-panel').scrollTop = 0;
       photoControls();
       $('photo-announcement').textContent = `${photos.size}枚`;
-      void shutter?.then(context => {
-        if (request === photoGeneration) playShutter(context);
+      void shutter?.then(sound => {
+        if (request === photoGeneration) playShutter(sound);
       });
     } catch {
       status('画像を作成できません');
@@ -292,6 +289,7 @@
     clearPhotos();
     if (audioContext) void audioContext.close().catch(() => {});
     audioContext = null;
+    shutterBuffer = null;
   });
   window.addEventListener('pageshow', event => {
     pageActive = true;

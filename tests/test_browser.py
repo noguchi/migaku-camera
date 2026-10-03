@@ -1,5 +1,6 @@
 """Real Chromium camera/JPEG checks; unavailable hardware states are simulated."""
 import functools
+import base64
 import http.server
 import os
 from pathlib import Path
@@ -186,17 +187,23 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('.photo-card')).to_have_count(2)
         self.poll('shutterEvents.length === 2')
         self.assertTrue(self.page.evaluate("shutterEvents.every(e => e.context.state === 'running' && e.source.connectedToSpeakers && e.buffer.duration > 0 && e.buffer.duration < 1)"))
-        rendered = self.page.evaluate("""async () => {
+        rendered = self.page.evaluate("""async encoded => {
           const buffer = shutterEvents[0].buffer;
           const offline = new OfflineAudioContext(1, buffer.length, buffer.sampleRate);
+          const bytes = Uint8Array.from(atob(encoded), char => char.charCodeAt(0));
+          const expected = await offline.decodeAudioData(bytes.buffer);
+          const samples = buffer.getChannelData(0);
+          const matches = buffer.length === expected.length && buffer.numberOfChannels === expected.numberOfChannels
+            && samples.every((value, i) => Math.abs(value - expected.getChannelData(0)[i]) < 0.00001);
           const source = offline.createBufferSource();
           source.buffer = buffer;
           source.connect(offline.destination);
           source.start();
           const result = await offline.startRendering();
-          return Math.max(...result.getChannelData(0).map(Math.abs));
-        }""")
-        self.assertGreater(rendered, 0.01)
+          return {peak: Math.max(...result.getChannelData(0).map(Math.abs)), matches};
+        }""", base64.b64encode((ROOT / 'third_party/android/camera-shutter.wav').read_bytes()).decode())
+        self.assertGreater(rendered['peak'], 0.01)
+        self.assertTrue(rendered['matches'], 'Playback must use the bundled Android camera sound')
         self.page.evaluate('() => { HTMLCanvasElement.prototype.toBlob = callback => callback(null); }')
         self.click_video()
         expect(self.page.locator('#status')).to_have_text('画像を作成できません')
@@ -267,7 +274,7 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertTrue(all(urlsplit(url).scheme in ('http', 'https', 'blob') for _, url in self.requests), self.requests)
         network = [(method, url) for method, url in self.requests if urlsplit(url).scheme != 'blob']
         self.assertTrue(all(urlsplit(url).netloc == host for _, url in network), network)
-        self.assertTrue(all(urlsplit(url).path.endswith(('/', '/app.js', '/style.css', '/index.html')) for _, url in network), network)
+        self.assertTrue(all(urlsplit(url).path.endswith(('/', '/app.js', '/shutter-sound.js', '/style.css', '/index.html')) for _, url in network), network)
         origin_scheme = urlsplit(self.url).scheme
         self.assertTrue(all(urlsplit(url[5:]).scheme == origin_scheme and urlsplit(url[5:]).netloc == host for _, url in self.requests if urlsplit(url).scheme == 'blob'), self.requests)
 
@@ -431,7 +438,7 @@ class CameraBrowserTests(unittest.TestCase):
     def test_insecure_http_is_rejected(self):
         def serve_local(route):
             name = urlsplit(route.request.url).path.rsplit('/', 1)[-1] or 'index.html'
-            content_type = {'index.html': 'text/html', 'app.js': 'application/javascript', 'style.css': 'text/css'}[name]
+            content_type = {'index.html': 'text/html', 'app.js': 'application/javascript', 'shutter-sound.js': 'application/javascript', 'style.css': 'text/css'}[name]
             route.fulfill(body=(ROOT / name).read_bytes(), content_type=content_type)
         self.page.route('http://camera.test/**', serve_local)
         self.page.goto('http://camera.test/')
