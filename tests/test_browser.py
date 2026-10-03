@@ -161,7 +161,8 @@ class CameraBrowserTests(unittest.TestCase):
         network = [(method, url) for method, url in self.requests if urlsplit(url).scheme != 'blob']
         self.assertTrue(all(urlsplit(url).netloc == host for _, url in network), network)
         self.assertTrue(all(urlsplit(url).path.endswith(('/', '/app.js', '/style.css', '/index.html')) for _, url in network), network)
-        self.assertTrue(all(url.startswith('blob:' + self.url.rstrip('/')) for _, url in self.requests if urlsplit(url).scheme == 'blob'), self.requests)
+        origin_scheme = urlsplit(self.url).scheme
+        self.assertTrue(all(urlsplit(url[5:]).scheme == origin_scheme and urlsplit(url[5:]).netloc == host for _, url in self.requests if urlsplit(url).scheme == 'blob'), self.requests)
 
     def test_camera_switch_and_resolutions(self):
         self.open()

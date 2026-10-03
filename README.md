@@ -53,7 +53,15 @@ python3 -m unittest discover -s tests -v
 2. Branch: **gh-pages**、フォルダー: **/ (root)** → **Save**
 3. 公開処理完了後、HTTPSが有効なことを確認します。表示されたURLをPCで開きます。
 
-GitHub Pagesの標準URLは `https://noguchi.github.io/migaku-camera/` です。公開完了までは未検証の予定URLです。非公開リポジトリでPagesを使うには対応するGitHubプランが必要です。リポジトリを公開に変更する必要が出た場合は、変更前に所有者が判断してください。非公開リポジトリでも、通常のPagesサイト自体は公開されます。
+公開URLは [https://noguchi.github.io/migaku-camera/](https://noguchi.github.io/migaku-camera/) です。HTTPSでHTML・CSS・JavaScriptが配信され、テスト済みファイルと一致することを確認しました。非公開リポジトリでPagesを使うには対応するGitHubプランが必要です。リポジトリの公開範囲を変更する場合は所有者が判断してください。非公開リポジトリでも、通常のPagesサイト自体は公開されます。
+
+公開サイトを対象に同じブラウザーテストを実行できます。
+
+```sh
+CAMERA_TEST_URL=https://noguchi.github.io/migaku-camera/ python3 -m unittest discover -s tests -v
+```
+
+クラウド環境でChromiumが `ERR_CERT_AUTHORITY_INVALID` を返す場合は、環境が提供する通信プロキシCAをChromiumのNSS信頼ストアに登録し、そのストアを読み書き可能な状態で起動してください。証明書検証を無効にするオプションは不要です。アプリ利用者のPCでこのクラウド用証明書を登録する必要はありません。
 
 Sitesが利用できる環境では、上記の静的ファイルをSitesに配置する方法を優先できます。このクラウド環境にはSites公開ツールがありません。GitHub Pagesを利用できない場合は、Netlify等の静的ホスティングで上記3ファイルのフォルダーをアップロードすれば、ビルド設定なしでHTTPS公開できます。公開サービスへのアカウント接続が必要です。
 
