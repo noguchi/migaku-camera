@@ -4,9 +4,6 @@
   const $ = id => document.getElementById(id);
   const video = $('video');
   const camera = $('camera-select');
-  const startButton = $('start-button');
-  const stopButton = $('stop-button');
-  const captureButton = $('capture-button');
   const media = navigator.mediaDevices;
   const supported = window.isSecureContext && !!media?.getUserMedia;
   const photos = new Map();
@@ -17,6 +14,7 @@
   let enumeration = 0;
   let photoGeneration = 0;
   let photoSequence = 0;
+  let audioContext = null;
 
   function status(message = '') {
     $('status').textContent = message;
@@ -25,11 +23,9 @@
 
   function controls() {
     const active = !!stream;
-    startButton.disabled = !supported || starting || active;
-    stopButton.disabled = !active && !starting;
     camera.disabled = !supported || starting || !camera.value;
     $('refresh-button').disabled = !supported || starting;
-    captureButton.disabled = !active || starting || capturing || video.readyState < 2 || !video.videoWidth;
+    video.setAttribute('aria-disabled', String(!canCapture()));
     $('live-badge').textContent = starting ? '準備中' : active ? '接続中' : '停止中';
     $('live-badge').classList.toggle('live', active);
     video.hidden = !active;
@@ -149,8 +145,49 @@
     for (const id of photos.keys()) deletePhoto(id);
   }
 
+  function canCapture() {
+    return !!stream && !starting && !capturing && video.readyState >= 2 && !!video.videoWidth;
+  }
+
+  function prepareShutter() {
+    try {
+      const Audio = window.AudioContext || window.webkitAudioContext;
+      if (!Audio) return null;
+      audioContext ||= new Audio();
+      // Resume during the click/key gesture, before JPEG encoding yields.
+      const context = audioContext;
+      return context.resume().then(() => context).catch(() => null);
+    } catch {
+      return null;
+    }
+  }
+
+  function playShutter(context) {
+    if (!context || context.state !== 'running') return;
+    try {
+      const duration = 0.14;
+      const buffer = context.createBuffer(1, Math.ceil(context.sampleRate * duration), context.sampleRate);
+      const samples = buffer.getChannelData(0);
+      // Two short, decaying noise bursts imitate a mechanical shutter.
+      for (let i = 0; i < samples.length; i++) {
+        const time = i / context.sampleRate;
+        const onset = time < 0.065 ? 0 : 0.065;
+        const elapsed = time - onset;
+        samples[i] = elapsed < 0.045 ? (Math.random() * 2 - 1) * 0.35 * Math.exp(-elapsed * 110) : 0;
+      }
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      source.onended = () => source.disconnect();
+      source.start();
+    } catch {
+      // Audio availability must not prevent saving the photo.
+    }
+  }
+
   async function capture() {
-    if (!stream || starting || video.readyState < 2 || !video.videoWidth || capturing) return;
+    if (!canCapture()) return;
+    const shutter = prepareShutter();
     capturing = true;
     controls();
     const request = photoGeneration;
@@ -200,7 +237,7 @@
       remove.addEventListener('click', () => {
         const next = card.nextElementSibling || card.previousElementSibling;
         deletePhoto(id);
-        (next?.querySelector('.delete-photo') || captureButton).focus();
+        (next?.querySelector('.delete-photo') || video).focus({ preventScroll: true });
         $('photo-announcement').textContent = `${photos.size}枚`;
       });
       actions.append(download, remove);
@@ -210,6 +247,9 @@
       $('photo-panel').scrollTop = 0;
       photoControls();
       $('photo-announcement').textContent = `${photos.size}枚`;
+      void shutter?.then(context => {
+        if (request === photoGeneration) playShutter(context);
+      });
     } catch {
       status('画像を作成できません');
     } finally {
@@ -218,11 +258,22 @@
     }
   }
 
-  startButton.addEventListener('click', () => void start());
-  stopButton.addEventListener('click', () => stop());
-  captureButton.addEventListener('click', () => void capture());
-  $('refresh-button').addEventListener('click', () => void refreshDevices(true));
-  camera.addEventListener('change', () => { if (stream) void start(); });
+  video.addEventListener('click', () => {
+    video.focus({ preventScroll: true });
+    void capture();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.code !== 'Space' || event.repeat || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (event.target.closest('button, select, input, textarea, a, [contenteditable]:not([contenteditable="false"])')) return;
+    event.preventDefault();
+    void capture();
+  });
+  async function reconnect(manual = false) {
+    await refreshDevices(manual);
+    if (!stream && !starting && camera.value) void start();
+  }
+  $('refresh-button').addEventListener('click', () => void reconnect(true));
+  camera.addEventListener('change', () => void start());
   $('clear-button').addEventListener('click', () => { clearPhotos(); $('photo-announcement').textContent = '0枚'; });
   $('gallery-toggle').addEventListener('click', () => {
     const panel = $('photo-panel');
@@ -231,10 +282,15 @@
   });
   video.addEventListener('loadeddata', controls);
   video.addEventListener('resize', controls);
-  window.addEventListener('pagehide', () => { stop(); clearPhotos(); });
+  window.addEventListener('pagehide', () => {
+    stop();
+    clearPhotos();
+    if (audioContext) void audioContext.close().catch(() => {});
+    audioContext = null;
+  });
   window.addEventListener('pageshow', event => { if (supported && event.persisted) void start(true); });
   if (supported) {
-    media.addEventListener('devicechange', () => void refreshDevices());
+    media.addEventListener('devicechange', () => void reconnect());
     void start(true);
   } else {
     status(window.isSecureContext ? 'カメラ機能に対応していません' : 'HTTPSが必要です');

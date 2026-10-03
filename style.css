@@ -37,7 +37,9 @@ body {
   max-width: none;
   max-height: none;
   object-fit: cover;
+  cursor: crosshair;
 }
+#video[aria-disabled="true"] { cursor: default; }
 .preview-placeholder { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 80px; }
 .overlay-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
 .overlay-layer .panel { pointer-events: auto; }
@@ -78,7 +80,7 @@ body {
   top: 84px;
   left: var(--edge);
   width: min(340px, calc(100vw - var(--gallery-width) - 3 * var(--edge)));
-  max-height: calc(100dvh - 190px);
+  max-height: calc(100dvh - 84px - var(--edge));
   overflow-y: auto;
 }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 8px; }
@@ -111,14 +113,6 @@ select {
 .placeholder-icon { font-size: 38px; color: #728f99; line-height: 1.2; }
 .video-size { color: var(--muted); font-size: 11px; margin-top: 10px; }
 .video-size:empty { display: none; }
-.camera-actions {
-  bottom: var(--edge);
-  left: var(--edge);
-  width: min(340px, calc(100vw - var(--gallery-width) - 3 * var(--edge)));
-  display: flex;
-  gap: 8px;
-  padding: 12px;
-}
 .button {
   border: 1px solid transparent;
   border-radius: 7px;
@@ -140,8 +134,6 @@ select {
 .button:disabled { opacity: .4; cursor: not-allowed; filter: none; }
 .primary { background: var(--green); color: #10392d; }
 .secondary { background: #15262ddb; border-color: #ffffff32; color: var(--ink); }
-.capture { background: #f4f8f6; color: #19352c; flex: 1; }
-.capture span { font-size: 15px; color: #c25139; }
 .subtle { background: #ffffff13; color: var(--ink); white-space: nowrap; padding-inline: 10px; }
 .status { font-size: 12px; border-radius: 7px; padding: 10px; margin: 12px 0 0; background: #aa422631; color: #ffd8bc; overflow-wrap: anywhere; }
 .photo-panel {
@@ -172,15 +164,14 @@ select {
   .brand { font-size: 16px; gap: 6px; }
   .brand-mark { font-size: 26px; }
   .panel { border-radius: 10px; padding: 10px; }
-  .camera-panel { top: 70px; width: calc(56vw - 24px); max-height: calc(100dvh - 160px); }
+  .camera-panel { top: 70px; width: calc(56vw - 24px); max-height: calc(100dvh - 70px - var(--edge)); }
   .camera-picker { flex-wrap: wrap; }
   .camera-picker .button { width: 100%; min-height: 34px; padding: 5px; }
-  .photo-panel { top: 70px; bottom: 90px; }
+  .photo-panel { top: 70px; }
   .panel-heading { gap: 4px; margin-bottom: 10px; }
   h2 { font-size: 12px; }
   .state-badge, .format-badge, .photo-count { font-size: 9px; padding: 2px 5px; }
   select { font-size: 12px; padding: 0 5px; }
-  .camera-actions { width: auto; right: var(--edge); padding: 10px; }
   .photo-meta { font-size: 9px; }
   .photo-actions .button { font-size: 11px; padding-inline: 6px; }
   .photo-actions { flex-wrap: wrap; }
