@@ -5,7 +5,7 @@
   --line: #ffffff24;
   --green: #8fe0c1;
   --edge: 24px;
-  --gallery-width: 320px;
+  --gallery-width: min(320px, calc(100vw / 3));
   --overlay-bg: #0e191f80;
 }
 * { box-sizing: border-box; }
@@ -154,17 +154,21 @@ select option { background: #14252c; color: var(--ink); }
 :focus-visible { outline: 3px solid #ffd284; outline-offset: 3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @media (max-width: 700px) {
-  :root { --edge: 12px; --gallery-width: calc(44vw - 12px); }
+  :root { --edge: 12px; }
   .site-header { gap: 8px; }
   .brand { font-size: 16px; gap: 6px; }
   .brand-mark { width: 37px; height: 37px; }
   .panel { border-radius: 10px; padding: 10px; }
-  .camera-status { top: 70px; width: calc(56vw - 24px); max-height: calc(100dvh - 70px - var(--edge)); }
+  .camera-status { top: 70px; max-height: calc(100dvh - 70px - var(--edge)); }
   .panel-heading { gap: 4px; margin-bottom: 10px; }
   h2 { font-size: 12px; }
   select { font-size: 12px; padding: 0 5px; }
 }
 @media (max-width: 400px) {
+  .photo-panel { padding: 6px; }
+  .photo-actions { right: 4px; bottom: 4px; gap: 4px; }
+  .photo-actions .button { width: clamp(24px, 10vw, 36px); height: clamp(24px, 10vw, 36px); min-height: 0; padding: 4px; }
+  .photo-actions svg { width: 100%; height: 100%; }
   .site-header { gap: 2px; }
   .brand { font-size: 12px; letter-spacing: 0; gap: 2px; }
 }

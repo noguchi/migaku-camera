@@ -648,12 +648,13 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth'))
         self.page.locator('.download').first.scroll_into_view_if_needed()
         expect(self.page.locator('.download').first).to_be_in_viewport()
-        for width, height in [(375, 812), (320, 568), (667, 375)]:
+        for width, height in [(375, 812), (320, 568), (667, 375), (540, 960), (701, 700), (768, 1024)]:
             with self.subTest(viewport=(width, height)):
                 self.page.set_viewport_size({'width': width, 'height': height})
                 self.assertEqual(self.page.locator('#video').bounding_box(), {'x': 0, 'y': 0, 'width': width, 'height': height})
                 camera = self.page.locator('#camera-select').bounding_box()
                 gallery = self.page.locator('.photo-panel').bounding_box()
+                self.assertLessEqual(gallery['width'], width / 3)
                 self.assertAlmostEqual(gallery['y'], camera['y'], delta=1)
                 self.assertLess(camera['x'] + camera['width'], gallery['x'])
                 self.assertGreaterEqual(camera['width'], 42)
@@ -681,6 +682,14 @@ class CameraBrowserTests(unittest.TestCase):
                 expect(self.page.locator('.photo-card')).to_have_count(2)
                 expect(self.page.locator('#video')).to_be_in_viewport()
                 self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight'))
+        self.page.set_viewport_size({'width': 320, 'height': 568})
+        with self.page.expect_download():
+            self.page.locator('.download').first.click()
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('.photo-card')).to_have_count(2)
+        self.page.locator('.delete-photo').first.click()
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('.photo-card')).to_have_count(1)
 
 
 if __name__ == '__main__':
