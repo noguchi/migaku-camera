@@ -32,7 +32,6 @@
   }
 
   function photoControls() {
-    $('photo-count').textContent = photos.size;
     $('photo-placeholder').hidden = photos.size > 0;
     $('clear-button').disabled = photos.size === 0;
   }
@@ -179,6 +178,22 @@
     }
   }
 
+  function photoIcon(pathData) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', pathData);
+    svg.append(path);
+    return svg;
+  }
+
   async function capture() {
     if (!canCapture()) return;
     const shutter = prepareShutter();
@@ -207,24 +222,20 @@
       image.height = canvas.height;
       image.loading = 'lazy';
       image.src = url;
-      const meta = document.createElement('div');
-      meta.className = 'photo-meta';
-      const time = document.createElement('time');
-      time.dateTime = date.toISOString();
-      time.textContent = date.toLocaleTimeString('ja-JP');
-      meta.append(time);
       const actions = document.createElement('div');
       actions.className = 'photo-actions';
       const download = document.createElement('a');
-      download.className = 'button primary download';
+      download.className = 'button download';
       download.href = url;
       download.download = `migaku-camera-${stamp}-${String(date.getMilliseconds()).padStart(3, '0')}-${id}.jpg`;
-      download.textContent = 'JPG保存';
+      download.append(photoIcon('M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4'));
+      download.title = 'JPGでダウンロード';
       download.setAttribute('aria-label', `撮影画像 ${id} をJPGでダウンロード`);
       const remove = document.createElement('button');
-      remove.className = 'button subtle delete-photo';
+      remove.className = 'button delete-photo';
       remove.type = 'button';
-      remove.textContent = '削除';
+      remove.append(photoIcon('M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7'));
+      remove.title = '削除';
       remove.setAttribute('aria-label', `撮影画像 ${id} を削除`);
       remove.addEventListener('click', () => {
         const next = card.nextElementSibling || card.previousElementSibling;
@@ -233,7 +244,7 @@
         $('photo-announcement').textContent = `${photos.size}枚`;
       });
       actions.append(download, remove);
-      card.append(image, meta, actions);
+      card.append(image, actions);
       photos.set(id, { url, card });
       $('photo-list').prepend(card);
       $('photo-panel').scrollTop = 0;

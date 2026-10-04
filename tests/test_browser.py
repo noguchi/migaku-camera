@@ -245,7 +245,13 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertGreater(camera['x'], brand['x'] + brand['width'])
         self.assertAlmostEqual(camera['y'] + camera['height'] / 2, brand['y'] + brand['height'] / 2, delta=1)
         self.capture()
-        expect(self.page.locator('#photo-heading-toggle')).to_have_text('撮影画像（1）')
+        expect(self.page.locator('#photo-heading-toggle')).to_have_text('撮影画像')
+        expect(self.page.locator('#photo-count, .photo-meta, .photo-card time')).to_have_count(0)
+        for selector, name in [('.download', 'ダウンロード'), ('.delete-photo', '削除')]:
+            control = self.page.locator(selector).first
+            expect(control).to_have_text('')
+            expect(control).to_have_accessible_name(f'撮影画像 1 をJPGで{name}' if selector == '.download' else f'撮影画像 1 を{name}')
+            expect(control.locator('svg')).to_be_visible()
         self.assertNotRegex(self.page.locator('body').inner_text(), r'\d+\s*×\s*\d+|\bpx\b')
 
     def test_camera_permission_restoration_restarts_without_retry_button(self):
@@ -274,7 +280,7 @@ class CameraBrowserTests(unittest.TestCase):
             self.capture()
         ids = self.page.locator('.photo-card').evaluate_all('cards => cards.map(card => card.dataset.photoId)')
         self.assertEqual(ids, ['3', '2', '1'])
-        expect(self.page.locator('#photo-count')).to_have_text('3')
+        expect(self.page.locator('.photo-card')).to_have_count(3)
         names = self.page.locator('.download').evaluate_all('links => links.map(link => link.download)')
         self.assertEqual(len(set(names)), 3)
         self.assertEqual(self.page.evaluate('revokedUrls.length'), 0)
@@ -319,7 +325,7 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertEqual(self.page.evaluate('revokedUrls'), [urls[1]])
         self.page.locator('#clear-button').click()
         expect(self.page.locator('#photo-list')).to_be_empty()
-        expect(self.page.locator('#photo-count')).to_have_text('0')
+        expect(self.page.locator('.photo-card')).to_have_count(0)
         expect(self.page.locator('#photo-placeholder')).to_be_visible()
         expect(self.page.locator('#clear-button')).to_be_disabled()
         self.assertEqual(set(self.page.evaluate('revokedUrls')), set(urls))
@@ -528,7 +534,7 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('#photo-panel')).to_be_visible()
         expect(self.page.locator('#gallery-reveal')).to_be_hidden()
         expect(self.page.locator('#photo-heading-toggle')).to_have_attribute('aria-expanded', 'true')
-        expect(self.page.locator('#photo-heading-toggle')).to_have_text('撮影画像（3）')
+        expect(self.page.locator('#photo-heading-toggle')).to_have_text('撮影画像')
         self.assertEqual(self.page.evaluate('revokedUrls.length'), 0)
         self.assertEqual(self.page.locator('.download').last.get_attribute('href'), urls[0])
         for point in [(1260, 2), (1260, 716), (650, 360)]:
@@ -620,6 +626,15 @@ class CameraBrowserTests(unittest.TestCase):
                 self.assertLessEqual(camera['x'] + camera['width'], width)
                 self.assertLessEqual(camera['y'] + camera['height'], height)
                 self.assertLessEqual(gallery['y'] + gallery['height'], height)
+                image = self.page.locator('.photo-image').first.bounding_box()
+                for selector in ['.download', '.delete-photo']:
+                    control = self.page.locator(selector).first
+                    rect = control.bounding_box()
+                    self.assertGreaterEqual(rect['x'], image['x'])
+                    self.assertGreaterEqual(rect['y'], image['y'])
+                    self.assertLessEqual(rect['x'] + rect['width'], image['x'] + image['width'])
+                    self.assertLessEqual(rect['y'] + rect['height'], image['y'] + image['height'])
+                    self.assertTrue(control.evaluate('(c) => {const r=c.getBoundingClientRect();return c.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}'))
                 self.page.locator('#photo-heading-toggle').click()
                 expect(self.page.locator('#photo-panel')).to_be_hidden()
                 self.assertTrue(self.page.evaluate("() => {const c=document.querySelector('#camera-select'),r=c.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2) === c;}"))
