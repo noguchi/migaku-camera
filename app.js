@@ -74,7 +74,10 @@
       const activeId = stream?.getVideoTracks()[0]?.getSettings().deviceId;
       const preferred = activeId || camera.value;
       camera.replaceChildren();
-      devices.forEach((device, index) => camera.add(new Option(device.label || `カメラ ${index + 1}`, device.deviceId)));
+      devices.forEach((device, index) => {
+        const name = device.label.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, '').trim();
+        camera.add(new Option(name || `カメラ ${index + 1}`, device.deviceId));
+      });
       if (!devices.length) {
         camera.add(new Option('カメラなし', ''));
         if (!stream && !starting && (manual || !$('status').textContent)) status(errors.NotFoundError);

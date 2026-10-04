@@ -331,7 +331,18 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertEqual(set(self.page.evaluate('revokedUrls')), set(urls))
 
     def test_camera_switch_preserves_photos_and_uses_maximum_resolution(self):
+        self.page.add_init_script("""
+          const enumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+          navigator.mediaDevices.enumerateDevices = async () => {
+            let index = 0;
+            return (await enumerate()).map(device => device.kind === 'videoinput'
+              ? {kind: device.kind, deviceId: device.deviceId,
+                 label: ['USBカメラ (f007:a999)', 'Camera (Wide) (F007:A999)'][index++]}
+              : device);
+          };
+        """)
         self.open()
+        expect(self.page.locator('#camera-select option')).to_have_text(['USBカメラ', 'Camera (Wide)'])
         self.capture()
         first_id = self.page.locator('#camera-select').input_value()
         second_id = self.page.locator('#camera-select option').nth(1).get_attribute('value')
@@ -344,6 +355,7 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertEqual(info['settings']['width'], info['capabilities']['width']['max'])
         self.assertEqual(info['settings']['height'], info['capabilities']['height']['max'])
         self.assertEqual(self.page.evaluate('testStreams[0].getVideoTracks()[0].readyState'), 'ended')
+        expect(self.page.locator('#camera-select option')).to_have_text(['USBカメラ', 'Camera (Wide)'])
         self.capture()
         expect(self.page.locator('.photo-card')).to_have_count(2)
         self.assertEqual(self.page.evaluate('revokedUrls.length'), 0)
