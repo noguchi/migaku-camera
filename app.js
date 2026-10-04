@@ -211,7 +211,8 @@
       if (!blob || blob.type !== 'image/jpeg') throw new Error('JPEG encoding failed');
       const id = ++photoSequence;
       const url = URL.createObjectURL(blob);
-      const stamp = [date.getFullYear(), date.getMonth() + 1, date.getDate(), date.getHours(), date.getMinutes(), date.getSeconds()].map(n => String(n).padStart(2, '0')).join('-');
+      const dateStamp = [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(n => String(n).padStart(2, '0')).join('');
+      const timeStamp = [date.getHours(), date.getMinutes(), date.getSeconds()].map(n => String(n).padStart(2, '0')).join('');
       const card = document.createElement('li');
       card.className = 'photo-card';
       card.dataset.photoId = id;
@@ -227,7 +228,7 @@
       const download = document.createElement('a');
       download.className = 'button download';
       download.href = url;
-      download.download = `migaku-camera-${stamp}-${String(date.getMilliseconds()).padStart(3, '0')}-${id}.jpg`;
+      download.download = `migaku-${dateStamp}-${timeStamp}-${id}.jpg`;
       download.append(photoIcon('M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4'));
       download.title = 'JPGでダウンロード';
       download.setAttribute('aria-label', `撮影画像 ${id} をJPGでダウンロード`);

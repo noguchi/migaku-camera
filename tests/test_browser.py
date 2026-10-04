@@ -291,7 +291,7 @@ class CameraBrowserTests(unittest.TestCase):
             with self.page.expect_download() as event:
                 link.click()
             download = event.value
-            self.assertRegex(download.suggested_filename, r'^migaku-camera-[0-9-]+\.jpg$')
+            self.assertRegex(download.suggested_filename, r'^migaku-\d{8}-\d{6}-[1-9]\d*\.jpg$')
             with tempfile.TemporaryDirectory() as directory:
                 path = Path(directory) / download.suggested_filename
                 download.save_as(path)
