@@ -47,7 +47,7 @@ body {
 .site-header {
   position: absolute;
   z-index: 2;
-  inset: var(--edge) var(--edge) auto;
+  inset: var(--edge) calc(var(--gallery-width) + 2 * var(--edge)) auto var(--edge);
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -95,7 +95,7 @@ h2 { font-size: 15px; margin: 0; }
 .gallery-reveal { position: absolute; z-index: 0; inset: 0 0 0 auto; width: 50%; height: 100%; border: 0; padding: 0; background: transparent; cursor: pointer; pointer-events: auto; }
 .gallery-reveal:focus-visible { outline-offset: -3px; }
 select {
-  min-width: 0;
+  min-width: 42px;
   width: 260px;
   flex: 0 1 260px;
   height: 42px;
@@ -134,7 +134,7 @@ select option { background: #14252c; color: var(--ink); }
 .subtle { background: #ffffff13; color: var(--ink); white-space: nowrap; padding-inline: 10px; }
 .status { font-size: 12px; border-radius: 7px; padding: 10px; margin: 0; background: #aa4226db; color: #ffd8bc; overflow-wrap: anywhere; }
 .photo-panel {
-  top: 84px;
+  top: var(--edge);
   bottom: var(--edge);
   right: var(--edge);
   width: var(--gallery-width);
@@ -162,7 +162,6 @@ select option { background: #14252c; color: var(--ink); }
   .brand-mark { font-size: 26px; }
   .panel { border-radius: 10px; padding: 10px; }
   .camera-status { top: 70px; width: calc(56vw - 24px); max-height: calc(100dvh - 70px - var(--edge)); }
-  .photo-panel { top: 70px; }
   .panel-heading { gap: 4px; margin-bottom: 10px; }
   h2 { font-size: 12px; }
   select { font-size: 12px; padding: 0 5px; }
@@ -171,4 +170,9 @@ select option { background: #14252c; color: var(--ink); }
   .photo-actions { flex-wrap: wrap; }
   .download { white-space: nowrap; }
   .clear { font-size: 11px; padding-inline: 4px; }
+}
+@media (max-width: 400px) {
+  .site-header { gap: 6px; }
+  .brand { font-size: 13px; letter-spacing: 0; gap: 4px; }
+  .brand-mark { font-size: 20px; }
 }
