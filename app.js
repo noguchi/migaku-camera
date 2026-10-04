@@ -282,6 +282,12 @@
     if (pageActive && request === generation && !stream && !starting && (manual || camera.value)) void start();
   }
   camera.addEventListener('change', () => void start());
+  const qrToggle = $('qr-toggle');
+  qrToggle.addEventListener('click', () => {
+    const expanded = qrToggle.getAttribute('aria-expanded') !== 'true';
+    qrToggle.setAttribute('aria-expanded', String(expanded));
+    qrToggle.setAttribute('aria-label', expanded ? 'QRコードを元のサイズに戻す' : 'QRコードを4倍に拡大');
+  });
   const fullscreen = $('fullscreen-toggle');
   let fullscreenPending = false;
   function fullscreenControls() {

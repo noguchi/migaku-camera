@@ -255,6 +255,40 @@ class CameraBrowserTests(unittest.TestCase):
             expect(control.locator('svg')).to_be_visible()
         self.assertNotRegex(self.page.locator('body').inner_text(), r'\d+\s*×\s*\d+|\bpx\b')
 
+    def test_qr_zoom_preserves_layout_and_does_not_capture(self):
+        self.open()
+        self.capture()
+        toggle = self.page.locator('#qr-toggle')
+        qr = self.page.locator('.brand-mark')
+        for width, height in [(1280, 720), (375, 812), (320, 568)]:
+            with self.subTest(viewport=(width, height)):
+                self.page.set_viewport_size({'width': width, 'height': height})
+                normal = qr.bounding_box()
+                camera = self.page.locator('#camera-select').bounding_box()
+                gallery = self.page.locator('#photo-panel').bounding_box()
+                toggle.click()
+                expect(toggle).to_have_attribute('aria-expanded', 'true')
+                expect(toggle).to_have_accessible_name('QRコードを元のサイズに戻す')
+                expanded = qr.bounding_box()
+                self.assertEqual(expanded['width'], normal['width'] * 4)
+                self.assertEqual(expanded['height'], normal['height'] * 4)
+                self.assertEqual(self.page.locator('#camera-select').bounding_box(), camera)
+                self.assertEqual(self.page.locator('#photo-panel').bounding_box(), gallery)
+                self.assertLessEqual(expanded['x'] + expanded['width'], width)
+                self.assertLessEqual(expanded['y'] + expanded['height'], height)
+                # Click well outside the original small button, on the enlarged QR.
+                self.page.mouse.click(expanded['x'] + expanded['width'] - 8,
+                                      expanded['y'] + expanded['height'] - 8)
+                expect(toggle).to_have_attribute('aria-expanded', 'false')
+                self.assertEqual(qr.bounding_box(), normal)
+                toggle.focus()
+                self.page.keyboard.press('Space')
+                expect(toggle).to_have_attribute('aria-expanded', 'true')
+                self.page.keyboard.press('Space')
+                expect(toggle).to_have_attribute('aria-expanded', 'false')
+                expect(self.page.locator('.photo-card')).to_have_count(1)
+                expect(self.page.locator('#photo-panel')).to_be_visible()
+
     def test_fullscreen_toggle_external_exit_and_failure_do_not_capture(self):
         self.open()
         self.capture()
