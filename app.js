@@ -33,7 +33,6 @@
 
   function photoControls() {
     $('photo-placeholder').hidden = photos.size > 0;
-    $('clear-button').disabled = photos.size === 0;
   }
 
   function releaseStream() {
@@ -283,7 +282,6 @@
     if (pageActive && request === generation && !stream && !starting && (manual || camera.value)) void start();
   }
   camera.addEventListener('change', () => void start());
-  $('clear-button').addEventListener('click', () => { clearPhotos(); $('photo-announcement').textContent = '0枚'; });
   function showGallery(visible) {
     const panel = $('photo-panel');
     panel.hidden = !visible;
@@ -292,7 +290,9 @@
     $('gallery-reveal').setAttribute('aria-expanded', String(visible));
     (visible ? $('photo-heading-toggle') : video.hidden ? $('gallery-reveal') : video).focus({ preventScroll: true });
   }
-  $('photo-heading-toggle').addEventListener('click', () => showGallery(false));
+  $('photo-panel').addEventListener('click', event => {
+    if (!event.target.closest('.photo-image, .photo-actions')) showGallery(false);
+  });
   $('gallery-reveal').addEventListener('click', () => showGallery(true));
   video.addEventListener('loadeddata', controls);
   video.addEventListener('resize', controls);

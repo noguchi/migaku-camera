@@ -296,6 +296,7 @@ class CameraBrowserTests(unittest.TestCase):
                 path = Path(directory) / download.suggested_filename
                 download.save_as(path)
                 self.assert_jpeg(path.read_bytes(), size)
+            expect(self.page.locator('#photo-panel')).to_be_visible()
         self.assertEqual(self.page.locator('.photo-card').count(), 3)
         self.start()
         self.capture()
@@ -314,7 +315,7 @@ class CameraBrowserTests(unittest.TestCase):
         origin_scheme = urlsplit(self.url).scheme
         self.assertTrue(all(urlsplit(url[5:]).scheme == origin_scheme and urlsplit(url[5:]).netloc == host for _, url in self.requests if urlsplit(url).scheme == 'blob'), self.requests)
 
-    def test_individual_and_all_photo_deletion_releases_urls(self):
+    def test_individual_photo_deletion_releases_urls_without_hiding_gallery(self):
         self.open()
         for _ in range(3):
             self.capture()
@@ -323,11 +324,14 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('.photo-card')).to_have_count(2)
         self.assertEqual(self.page.locator('.photo-card').evaluate_all('cards => cards.map(c => c.dataset.photoId)'), ['3', '1'])
         self.assertEqual(self.page.evaluate('revokedUrls'), [urls[1]])
-        self.page.locator('#clear-button').click()
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('#clear-button')).to_have_count(0)
+        for _ in range(2):
+            self.page.locator('.delete-photo').first.click()
+            expect(self.page.locator('#photo-panel')).to_be_visible()
         expect(self.page.locator('#photo-list')).to_be_empty()
         expect(self.page.locator('.photo-card')).to_have_count(0)
         expect(self.page.locator('#photo-placeholder')).to_be_visible()
-        expect(self.page.locator('#clear-button')).to_be_disabled()
         self.assertEqual(set(self.page.evaluate('revokedUrls')), set(urls))
 
     def test_camera_switch_preserves_photos_and_uses_maximum_resolution(self):
@@ -445,7 +449,7 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
         self.assertEqual(self.page.evaluate('testStreams.length'), 3)
 
-    def test_clear_during_image_encoding_does_not_restore_photos(self):
+    def test_page_cleanup_during_image_encoding_does_not_restore_photos(self):
         self.open()
         self.capture()
         self.page.evaluate("""() => {
@@ -459,9 +463,9 @@ class CameraBrowserTests(unittest.TestCase):
         self.click_video()
         self.page.keyboard.press('Space')
         expect(self.page.locator('.photo-card')).to_have_count(1)
-        self.page.locator('#clear-button').click()
+        self.page.evaluate("window.dispatchEvent(new PageTransitionEvent('pagehide'))")
         self.page.evaluate('finishPhoto()')
-        expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
+        expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'true')
         expect(self.page.locator('#photo-list')).to_be_empty()
         self.assertEqual(self.page.evaluate('revokedUrls.length'), 1)
 
@@ -529,8 +533,14 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertEqual(self.page.evaluate("document.querySelector('.photo-panel').scrollTop"), 0)
         self.assertTrue(self.page.evaluate('document.documentElement.scrollHeight <= innerHeight'))
 
-    def test_gallery_heading_hides_and_right_side_restores_without_capture(self):
+    def test_gallery_background_hides_and_right_side_restores_without_capture(self):
         self.open()
+        # The empty placeholder is also part of the clickable background.
+        self.page.locator('#photo-placeholder').click()
+        expect(self.page.locator('#photo-panel')).to_be_hidden()
+        self.click_video(1260, 360)
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('.photo-card')).to_have_count(0)
         self.capture()
         urls = self.page.locator('.download').evaluate_all('links => links.map(link => link.href)')
         self.page.locator('#photo-heading-toggle').click()
@@ -554,6 +564,21 @@ class CameraBrowserTests(unittest.TestCase):
             self.click_video(*point)
             expect(self.page.locator('#photo-panel')).to_be_visible()
             expect(self.page.locator('.photo-card')).to_have_count(3)
+        self.page.locator('.photo-image').first.click()
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('.photo-card')).to_have_count(3)
+        panel = self.page.locator('#photo-panel').bounding_box()
+        first = self.page.locator('.photo-image').first.bounding_box()
+        for point in [(panel['x'] + panel['width'] - 4, panel['y'] + 10),
+                      (panel['x'] + 4, first['y'] + first['height'] / 2),
+                      (first['x'] + first['width'] / 2, first['y'] + first['height'] + 10),
+                      (panel['x'] + panel['width'] / 2, panel['y'] + panel['height'] - 4)]:
+            self.page.mouse.click(*point)
+            expect(self.page.locator('#photo-panel')).to_be_hidden()
+            self.assertEqual(self.page.evaluate('revokedUrls.length'), 0)
+            expect(self.page.locator('.photo-card')).to_have_count(3)
+            self.click_video(1260, 360)
+            expect(self.page.locator('#photo-panel')).to_be_visible()
         # The invisible restore control also supports keyboard users.
         self.page.locator('#photo-heading-toggle').focus()
         self.page.keyboard.press('Enter')

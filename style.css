@@ -130,8 +130,6 @@ select option { background: #14252c; color: var(--ink); }
 }
 .button:hover { filter: brightness(1.1); }
 .button:disabled { opacity: .4; cursor: not-allowed; filter: none; }
-.primary { background: var(--green); color: #10392d; }
-.subtle { background: #ffffff13; color: var(--ink); white-space: nowrap; padding-inline: 10px; }
 .status { font-size: 12px; border-radius: 7px; padding: 10px; margin: 0; background: #aa4226db; color: #ffd8bc; overflow-wrap: anywhere; }
 .photo-panel {
   top: var(--edge);
@@ -142,15 +140,15 @@ select option { background: #14252c; color: var(--ink); }
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: #6f8a94 transparent;
+  cursor: pointer;
 }
 .photo-empty { display: grid; place-items: center; aspect-ratio: 4 / 3; background: #ffffff08; border: 1px dashed #ffffff24; border-radius: 9px; }
 .photo-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 20px; }
 .photo-card { position: relative; min-width: 0; }
-.photo-image { display: block; width: 100%; height: auto; border-radius: 8px; background: #14252c; }
+.photo-image { display: block; width: 100%; height: auto; border-radius: 8px; background: #14252c; cursor: default; }
 .photo-actions { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 6px; }
 .photo-actions .button { width: 40px; height: 40px; min-height: 40px; padding: 8px; background: #0e191fb3; color: var(--ink); border: 1px solid #ffffff32; backdrop-filter: blur(6px); }
 .photo-actions svg { width: 22px; height: 22px; pointer-events: none; }
-.clear { width: 100%; margin-top: 16px; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 3px solid #ffd284; outline-offset: 3px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -164,7 +162,6 @@ select option { background: #14252c; color: var(--ink); }
   .panel-heading { gap: 4px; margin-bottom: 10px; }
   h2 { font-size: 12px; }
   select { font-size: 12px; padding: 0 5px; }
-  .clear { font-size: 11px; padding-inline: 4px; }
 }
 @media (max-width: 400px) {
   .site-header { gap: 6px; }
