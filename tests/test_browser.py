@@ -516,6 +516,16 @@ class CameraBrowserTests(unittest.TestCase):
         """)
         self.open(active=False)
         expect(self.page.locator('#status')).to_have_text('カメラが見つかりません')
+        for width, height in [(1280, 720), (320, 568), (667, 375)]:
+            self.page.set_viewport_size({'width': width, 'height': height})
+            message = self.page.locator('#status').bounding_box()
+            self.assertAlmostEqual(message['x'] + message['width'] / 2, width / 2, delta=1)
+            self.assertAlmostEqual(message['y'] + message['height'] / 2, height / 2, delta=1)
+            self.assertGreaterEqual(message['x'], 0)
+            self.assertLessEqual(message['x'] + message['width'], width)
+            self.assertTrue(self.page.locator('#status').evaluate('(m) => {const r=m.getBoundingClientRect();return m.contains(document.elementFromPoint(r.right-5,r.y+r.height/2));}'))
+            expect(self.page.locator('#preview-placeholder')).to_be_hidden()
+        self.page.set_viewport_size({'width': 1280, 'height': 720})
         expect(self.page.locator('#camera-select')).to_be_disabled()
         expect(self.page.locator('#refresh-button')).to_have_count(0)
         self.page.evaluate("""() => {

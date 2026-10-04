@@ -89,14 +89,17 @@ body {
 }
 .camera-status {
   position: absolute;
-  z-index: 2;
-  top: 110px;
-  left: var(--edge);
-  width: min(340px, calc(100vw - var(--gallery-width) - 3 * var(--edge)));
-  max-height: calc(100dvh - 110px - var(--edge));
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(340px, calc(100vw - 2 * var(--edge)));
+  max-height: calc(100dvh - 2 * var(--edge));
+  text-align: center;
   overflow-y: auto;
   pointer-events: auto;
 }
+.camera-stage:has(.camera-status:not([hidden])) .preview-placeholder { visibility: hidden; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 8px; text-shadow: 0 1px 3px #000c; }
 h2 { font-size: 15px; margin: 0; }
 .photo-heading-toggle { display: block; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; font-weight: 700; text-align: left; text-shadow: inherit; cursor: pointer; }
@@ -167,7 +170,6 @@ select option { background: #14252c; color: var(--ink); }
   .site-header { gap: 8px; }
   .brand { font-size: 16px; gap: 6px; }
   .panel { border-radius: 10px; padding: 10px; }
-  .camera-status { top: 70px; max-height: calc(100dvh - 70px - var(--edge)); }
   .panel-heading { gap: 4px; margin-bottom: 10px; }
   h2 { font-size: 12px; }
   select { font-size: 12px; padding: 0 5px; }
