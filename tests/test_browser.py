@@ -2,6 +2,7 @@
 import functools
 import base64
 import http.server
+import json
 import os
 from pathlib import Path
 import struct
@@ -9,7 +10,7 @@ import tempfile
 import threading
 import time
 import unittest
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 from playwright.sync_api import sync_playwright, expect
 
@@ -407,6 +408,74 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('.photo-card')).to_have_count(0)
         expect(self.page.locator('#photo-placeholder')).to_be_visible()
         self.assertEqual(set(self.page.evaluate('revokedUrls')), set(urls))
+
+    def mock_camera_labels(self):
+        self.page.add_init_script("""
+          window.testCameraLabels = JSON.parse(new URL(location.href).searchParams.get('camera_labels'));
+          window.hideFirstCamera = false;
+          const enumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
+          navigator.mediaDevices.enumerateDevices = async () => {
+            let index = 0;
+            return (await enumerate()).flatMap(device => {
+              if (device.kind !== 'videoinput') return [device];
+              const i = index++;
+              if (hideFirstCamera && i === 0) return [];
+              return [{kind: device.kind, deviceId: device.deviceId,
+                       label: testStreams.length ? testCameraLabels[i] : ''}];
+            });
+          };
+        """)
+
+    def test_camera_name_priorities_after_permission_and_default_fallback(self):
+        self.mock_camera_labels()
+        base_url = self.url
+        cases = [(['USB Webcam', 'tEsLoNg Scope'], 1),
+                 (['UVC Webcam', 'usb Webcam'], 1),
+                 (['Back Camera', 'UVC Camera'], 1),
+                 (['Front Camera', 'bAcK Camera'], 1),
+                 (['Teslong USB Webcam', 'Teslong Scope'], 0),
+                 (['Front Camera', 'Rear Camera'], 0)]
+        for labels, index in cases:
+            with self.subTest(labels=labels):
+                self.url = base_url + '?' + urlencode({'camera_labels': json.dumps(labels)})
+                self.open()
+                expected_id = self.page.locator('#camera-select option').nth(index).get_attribute('value')
+                expect(self.page.locator('#camera-select')).to_have_value(expected_id)
+                self.assertEqual(self.page.evaluate('testStreams.at(-1).getVideoTracks()[0].getSettings().deviceId'), expected_id)
+                self.assertNotIn('deviceId', self.page.evaluate('testConstraints[0].video'))
+                self.assertEqual(self.page.evaluate('testStreams.length'), 2 if index else 1)
+                if index:
+                    self.assertEqual(self.page.evaluate('testConstraints[1].video.deviceId.exact'), expected_id)
+                    self.assertEqual(self.page.evaluate("testStreams[0].getVideoTracks()[0].readyState"), 'ended')
+                expect(self.page.locator('#status')).to_be_hidden()
+        self.url = base_url
+        self.assert_no_external_requests()
+
+    def test_priority_camera_reconnect_preserves_manual_choice_and_photos(self):
+        self.mock_camera_labels()
+        self.url += '?' + urlencode({'camera_labels': json.dumps(['Front Camera', 'Rear Camera'])})
+        self.open()
+        self.capture()
+        first_id = self.page.locator('#camera-select option').first.get_attribute('value')
+        second_id = self.page.locator('#camera-select option').nth(1).get_attribute('value')
+        self.page.evaluate("() => { testCameraLabels[1] = 'USB Camera'; navigator.mediaDevices.dispatchEvent(new Event('devicechange')); }")
+        self.poll('testStreams.length === 2')
+        expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
+        expect(self.page.locator('#camera-select')).to_have_value(second_id)
+        self.page.locator('#camera-select').select_option(first_id)
+        self.poll('testStreams.length === 3')
+        expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
+        self.page.evaluate("() => { testCameraLabels[1] = 'Teslong Camera'; navigator.mediaDevices.dispatchEvent(new Event('devicechange')); }")
+        expect(self.page.locator('#camera-select option').nth(1)).to_have_text('Teslong Camera')
+        expect(self.page.locator('#camera-select')).to_have_value(first_id)
+        self.assertEqual(self.page.evaluate('testStreams.length'), 3)
+        self.page.evaluate("() => { hideFirstCamera = true; navigator.mediaDevices.dispatchEvent(new Event('devicechange')); }")
+        self.poll('testStreams.length === 4')
+        expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
+        expect(self.page.locator('#camera-select')).to_have_value(second_id)
+        self.assertEqual(self.page.evaluate('testStreams.at(-1).getVideoTracks()[0].getSettings().deviceId'), second_id)
+        expect(self.page.locator('.photo-card')).to_have_count(1)
+        self.assertEqual(self.page.evaluate('revokedUrls.length'), 0)
 
     def test_camera_switch_preserves_photos_and_uses_maximum_resolution(self):
         self.page.add_init_script("""

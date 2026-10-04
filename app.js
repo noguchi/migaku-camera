@@ -6,6 +6,7 @@
   const camera = $('camera-select');
   const media = navigator.mediaDevices;
   const supported = window.isSecureContext && !!media?.getUserMedia;
+  const cameraPriorities = ['teslong', 'usb', 'uvc', 'back'];
   const photos = new Map();
   let stream = null;
   let starting = false;
@@ -17,6 +18,7 @@
   let audioContext = null;
   let shutterBuffer = null;
   let pageActive = true;
+  let manualCameraId = '';
 
   function status(message = '') {
     $('status').textContent = message;
@@ -65,13 +67,24 @@
     AbortError: 'カメラの開始が中断されました'
   };
 
+  function priorityCamera(devices) {
+    for (const keyword of cameraPriorities) {
+      const device = devices.find(device => device.deviceId && device.label.toLowerCase().includes(keyword));
+      if (device) return device;
+    }
+  }
+
   async function refreshDevices(manual = false) {
     const request = ++enumeration;
+    const state = generation;
     try {
       const devices = (await media.enumerateDevices()).filter(device => device.kind === 'videoinput');
-      if (request !== enumeration) return;
+      if (request !== enumeration || state !== generation || !pageActive) return false;
       const activeId = stream?.getVideoTracks()[0]?.getSettings().deviceId;
-      const preferred = activeId || camera.value;
+      const preferred = devices.find(device => device.deviceId && device.deviceId === manualCameraId)
+        || priorityCamera(devices)
+        || devices.find(device => device.deviceId === (activeId || camera.value))
+        || devices[0];
       camera.replaceChildren();
       devices.forEach((device, index) => {
         const name = device.label.replace(/\s*\([0-9a-f]{4}:[0-9a-f]{4}\)\s*$/i, '').trim();
@@ -81,15 +94,17 @@
         camera.add(new Option('カメラなし', ''));
         if (!stream && !starting && (manual || !$('status').textContent)) status(errors.NotFoundError);
       } else {
-        if (devices.some(device => device.deviceId === preferred)) camera.value = preferred;
+        camera.value = preferred.deviceId;
         if (manual && !stream && !starting) status();
       }
       if (activeId && !devices.some(device => device.deviceId === activeId)) stop('カメラの接続が終了しました');
       controls();
+      return true;
     } catch (error) {
-      if (request !== enumeration) return;
+      if (request !== enumeration || state !== generation || !pageActive) return false;
       status(errors[error.name] || 'カメラ一覧を取得できません');
       controls();
+      return false;
     }
   }
 
@@ -120,9 +135,12 @@
       video.srcObject = stream;
       await video.play();
       if (request !== generation) return;
-      starting = false;
-      controls();
       await refreshDevices();
+      if (request !== generation || !pageActive) return;
+      starting = false;
+      const activeId = track.getSettings().deviceId;
+      if (activeId && camera.value && camera.value !== activeId) void start();
+      else controls();
     } catch (error) {
       if (request !== generation) return;
       stop(errors[error.name] || 'カメラを開始できません');
@@ -276,12 +294,16 @@
   });
   async function reconnect(manual = false) {
     if (!pageActive) return;
-    const request = generation;
-    await refreshDevices(manual);
+    const refreshed = await refreshDevices(manual);
+    if (!refreshed || !pageActive || starting) return;
     // Before permission is granted, enumeration may hide device IDs.
-    if (pageActive && request === generation && !stream && !starting && (manual || camera.value)) void start();
+    const activeId = stream?.getVideoTracks()[0]?.getSettings().deviceId;
+    if ((!stream && (manual || camera.value)) || (activeId && camera.value && camera.value !== activeId)) void start();
   }
-  camera.addEventListener('change', () => void start());
+  camera.addEventListener('change', () => {
+    manualCameraId = camera.value;
+    void start();
+  });
   const qrToggle = $('qr-toggle');
   qrToggle.addEventListener('click', () => {
     const expanded = qrToggle.getAttribute('aria-expanded') !== 'true';
