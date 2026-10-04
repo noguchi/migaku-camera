@@ -49,7 +49,7 @@ body {
   z-index: 2;
   inset: var(--edge) calc(var(--gallery-width) + 2 * var(--edge)) auto var(--edge);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   gap: 18px;
   pointer-events: none;
@@ -58,16 +58,17 @@ body {
 .brand {
   margin: 0;
   font-size: 20px;
+  line-height: 42px;
   font-weight: 750;
   letter-spacing: .06em;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   white-space: nowrap;
   flex: 0 0 auto;
   text-shadow: 0 2px 12px #000b;
 }
-.brand-mark { color: var(--green); font-size: 32px; line-height: 1; }
+.brand-mark { display: block; width: 74px; height: 74px; flex: 0 0 auto; background: #fff; }
 .panel {
   position: absolute;
   z-index: 1;
@@ -82,10 +83,10 @@ body {
 .camera-status {
   position: absolute;
   z-index: 2;
-  top: 84px;
+  top: 110px;
   left: var(--edge);
   width: min(340px, calc(100vw - var(--gallery-width) - 3 * var(--edge)));
-  max-height: calc(100dvh - 84px - var(--edge));
+  max-height: calc(100dvh - 110px - var(--edge));
   overflow-y: auto;
   pointer-events: auto;
 }
@@ -154,9 +155,9 @@ select option { background: #14252c; color: var(--ink); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @media (max-width: 700px) {
   :root { --edge: 12px; --gallery-width: calc(44vw - 12px); }
-  .site-header { align-items: center; gap: 8px; }
+  .site-header { gap: 8px; }
   .brand { font-size: 16px; gap: 6px; }
-  .brand-mark { font-size: 26px; }
+  .brand-mark { width: 37px; height: 37px; }
   .panel { border-radius: 10px; padding: 10px; }
   .camera-status { top: 70px; width: calc(56vw - 24px); max-height: calc(100dvh - 70px - var(--edge)); }
   .panel-heading { gap: 4px; margin-bottom: 10px; }
@@ -164,7 +165,6 @@ select option { background: #14252c; color: var(--ink); }
   select { font-size: 12px; padding: 0 5px; }
 }
 @media (max-width: 400px) {
-  .site-header { gap: 6px; }
-  .brand { font-size: 13px; letter-spacing: 0; gap: 4px; }
-  .brand-mark { font-size: 20px; }
+  .site-header { gap: 2px; }
+  .brand { font-size: 12px; letter-spacing: 0; gap: 2px; }
 }
