@@ -81,9 +81,8 @@ class CameraBrowserTests(unittest.TestCase):
             expect(self.page.locator('#camera-select option')).to_have_count(2)
 
     def start(self):
-        self.page.locator('#refresh-button').click()
+        self.page.evaluate("navigator.mediaDevices.dispatchEvent(new Event('devicechange'))")
         expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false', timeout=10000)
-        expect(self.page.locator('#live-badge')).to_have_text('接続中')
 
     def poll(self, expression, arg=None):
         # wait_for_function uses eval internally, which the app's CSP prohibits.
@@ -97,7 +96,7 @@ class CameraBrowserTests(unittest.TestCase):
     def click_video(self, x=None, y=None):
         viewport = self.page.viewport_size
         self.page.mouse.click(
-            x if x is not None else viewport['width'] / 2,
+            x if x is not None else viewport['width'] * 0.3,
             y if y is not None else viewport['height'] - 4,
         )
 
@@ -107,8 +106,9 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('.photo-card')).to_have_count(count + 1)
         expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
         # Lazy images below the fold load when visible; only inspect the newest.
-        self.page.locator('.photo-image').first.scroll_into_view_if_needed()
-        self.poll("() => {const img = document.querySelector('.photo-image'); return img.complete && img.naturalWidth > 0;}")
+        if self.page.locator('#photo-panel').is_visible():
+            self.page.locator('.photo-image').first.scroll_into_view_if_needed()
+            self.poll("() => {const img = document.querySelector('.photo-image'); return img.complete && img.naturalWidth > 0;}")
 
     def assert_jpeg(self, data, expected_size):
         self.assertEqual(data[:2], b'\xff\xd8')
@@ -137,14 +137,14 @@ class CameraBrowserTests(unittest.TestCase):
             expect(self.page.locator('.photo-card')).to_have_count(count)
             expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
         expect(self.page.locator('.photo-card')).to_have_count(5)
-        self.page.locator('#refresh-button').click()
+        self.page.evaluate("navigator.mediaDevices.dispatchEvent(new Event('devicechange'))")
         self.page.locator('#camera-select').focus()
-        self.page.locator('.panel-heading').first.click()
         self.page.locator('.photo-image').first.click()
-        self.page.locator('#gallery-toggle').click()
+        self.page.locator('#photo-heading-toggle').click()
         expect(self.page.locator('.photo-card')).to_have_count(5)
         self.click_video(1260, 360)
-        expect(self.page.locator('.photo-card')).to_have_count(6)
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('.photo-card')).to_have_count(5)
 
     def test_space_capture_ignores_repeat_and_control_focus(self):
         self.open()
@@ -156,7 +156,7 @@ class CameraBrowserTests(unittest.TestCase):
         self.page.wait_for_timeout(180)
         expect(self.page.locator('.photo-card')).to_have_count(2)
         self.page.keyboard.up('Space')
-        for selector in ['#camera-select', '.download', '#refresh-button']:
+        for selector in ['#camera-select', '.download']:
             self.page.locator(selector).first.focus()
             self.page.keyboard.press('Space')
             expect(self.page.locator('.photo-card')).to_have_count(2)
@@ -236,6 +236,36 @@ class CameraBrowserTests(unittest.TestCase):
         expect(self.page.locator('#photo-placeholder')).to_be_visible()
         expect(self.page.locator('#resolution-select')).to_have_count(0)
         expect(self.page.locator('.intro, .guide, .troubleshooting, footer, .hint, .privacy-badge')).to_have_count(0)
+
+    def test_simple_header_and_no_pixel_count_labels(self):
+        self.open()
+        expect(self.page.locator('#refresh-button, #gallery-toggle, #live-badge, #video-size, .camera-panel')).to_have_count(0)
+        brand = self.page.locator('.brand').bounding_box()
+        camera = self.page.locator('#camera-select').bounding_box()
+        self.assertGreater(camera['x'], brand['x'] + brand['width'])
+        self.assertAlmostEqual(camera['y'] + camera['height'] / 2, brand['y'] + brand['height'] / 2, delta=1)
+        self.capture()
+        expect(self.page.locator('#photo-heading-toggle')).to_have_text('撮影画像（1）')
+        self.assertNotRegex(self.page.locator('body').inner_text(), r'\d+\s*×\s*\d+|\bpx\b')
+
+    def test_camera_permission_restoration_restarts_without_retry_button(self):
+        self.page.add_init_script("""
+          window.cameraPermission = new EventTarget();
+          cameraPermission.state = 'denied';
+          navigator.permissions.query = async () => cameraPermission;
+          window.nativeGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+          navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('', 'NotAllowedError'); };
+        """)
+        self.open(active=False)
+        expect(self.page.locator('#status')).to_contain_text('許可されていません')
+        self.page.evaluate("""() => {
+          navigator.mediaDevices.getUserMedia = nativeGetUserMedia;
+          cameraPermission.state = 'granted';
+          cameraPermission.dispatchEvent(new Event('change'));
+        }""")
+        expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
+        expect(self.page.locator('#status')).to_be_hidden()
+        self.assertEqual(self.page.evaluate('testStreams.length'), 1)
 
     def test_multiple_photos_latest_first_and_jpeg_downloads_after_disconnect(self):
         self.open()
@@ -322,13 +352,13 @@ class CameraBrowserTests(unittest.TestCase):
         self.open(active=False)
         expect(self.page.locator('#status')).to_have_text('カメラが見つかりません')
         expect(self.page.locator('#camera-select')).to_be_disabled()
-        expect(self.page.locator('#refresh-button')).to_be_enabled()
+        expect(self.page.locator('#refresh-button')).to_have_count(0)
         self.page.evaluate("""() => {
           navigator.mediaDevices.enumerateDevices = async () => testStreams.length
             ? nativeEnumerate() : [{kind: 'videoinput', deviceId: '', label: ''}];
           navigator.mediaDevices.getUserMedia = nativeGetUserMedia;
         }""")
-        self.page.locator('#refresh-button').click()
+        self.page.evaluate("navigator.mediaDevices.dispatchEvent(new Event('devicechange'))")
         expect(self.page.locator('#camera-select option')).to_have_count(2)
         expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'false')
         self.assertNotIn('deviceId', self.page.evaluate('testConstraints[0].video'))
@@ -340,9 +370,9 @@ class CameraBrowserTests(unittest.TestCase):
         for name, message in cases:
             with self.subTest(error=name):
                 self.page.evaluate("name => { navigator.mediaDevices.getUserMedia = async () => { throw new DOMException('', name); }; }", name)
-                self.page.locator('#refresh-button').click()
+                self.page.evaluate("navigator.mediaDevices.dispatchEvent(new Event('devicechange'))")
                 expect(self.page.locator('#status')).to_contain_text(message)
-                expect(self.page.locator('#refresh-button')).to_be_enabled()
+                expect(self.page.locator('#refresh-button')).to_have_count(0)
                 expect(self.page.locator('#video')).to_have_attribute('aria-disabled', 'true')
                 expect(self.page.locator('#video')).to_be_hidden()
 
@@ -361,11 +391,10 @@ class CameraBrowserTests(unittest.TestCase):
         self.page.keyboard.press('Space')
         expect(self.page.locator('#photo-list')).to_be_empty()
         self.page.evaluate("window.dispatchEvent(new PageTransitionEvent('pagehide'))")
-        expect(self.page.locator('#refresh-button')).to_be_enabled()
+        expect(self.page.locator('#refresh-button')).to_have_count(0)
         self.page.evaluate('releasePending()')
         self.poll("testStreams[0].getVideoTracks()[0].readyState === 'ended'")
         self.assertIsNone(self.page.evaluate("document.querySelector('#video').srcObject"))
-        expect(self.page.locator('#live-badge')).to_have_text('停止中')
         expect(self.page.locator('#status')).to_be_hidden()
 
     def test_camera_disconnect_and_page_cleanup(self):
@@ -383,7 +412,7 @@ class CameraBrowserTests(unittest.TestCase):
             window.finishEnumeration = async () => resolve(await nativeEnumerate());
           });
         }""")
-        self.page.locator('#refresh-button').click()
+        self.page.evaluate("navigator.mediaDevices.dispatchEvent(new Event('devicechange'))")
         self.poll("typeof finishEnumeration === 'function'")
         self.page.evaluate("window.dispatchEvent(new PageTransitionEvent('pagehide'))")
         self.page.evaluate("navigator.mediaDevices.dispatchEvent(new Event('devicechange'))")
@@ -433,7 +462,7 @@ class CameraBrowserTests(unittest.TestCase):
         self.open(active=False)
         expect(self.page.locator('#status')).to_contain_text('対応していません')
         expect(self.page.locator('#start-button, #stop-button, #capture-button')).to_have_count(0)
-        expect(self.page.locator('#refresh-button')).to_be_disabled()
+        expect(self.page.locator('#refresh-button')).to_have_count(0)
 
     def test_insecure_http_is_rejected(self):
         def serve_local(route):
@@ -468,10 +497,10 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertEqual(self.page.locator('#camera-stage').bounding_box(), video)
         self.assertEqual(self.page.locator('#overlay-layer').bounding_box(), video)
         self.assertEqual(self.page.evaluate("document.elementFromPoint(innerWidth / 2, innerHeight / 2).id"), 'video')
-        camera = self.page.locator('.camera-panel').bounding_box()
+        camera = self.page.locator('#camera-select').bounding_box()
         gallery = self.page.locator('.photo-panel').bounding_box()
-        self.assertGreater(gallery['x'], camera['x'] + camera['width'])
-        self.assertTrue(self.page.evaluate("() => {const p=document.querySelector('.camera-panel'),r=p.getBoundingClientRect();return p.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}"))
+        self.assertGreater(gallery['y'], camera['y'] + camera['height'])
+        self.assertTrue(self.page.evaluate("() => {const p=document.querySelector('#camera-select'),r=p.getBoundingClientRect();return p === document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);}"))
         self.assertTrue(self.page.evaluate("() => {const p=document.querySelector('.photo-panel'),r=p.getBoundingClientRect();return p.contains(document.elementFromPoint(r.x+r.width/2,r.y+20));}"))
         self.page.evaluate("document.querySelector('.photo-panel').scrollTop = 9999")
         self.assertGreater(self.page.evaluate("document.querySelector('.photo-panel').scrollTop"), 0)
@@ -481,19 +510,39 @@ class CameraBrowserTests(unittest.TestCase):
         self.assertEqual(self.page.evaluate("document.querySelector('.photo-panel').scrollTop"), 0)
         self.assertTrue(self.page.evaluate('document.documentElement.scrollHeight <= innerHeight'))
 
-    def test_gallery_toggle_preserves_camera_and_photos(self):
+    def test_gallery_heading_hides_and_right_side_restores_without_capture(self):
         self.open()
         self.capture()
-        self.page.locator('#gallery-toggle').click()
+        urls = self.page.locator('.download').evaluate_all('links => links.map(link => link.href)')
+        self.page.locator('#photo-heading-toggle').click()
         expect(self.page.locator('#photo-panel')).to_be_hidden()
-        expect(self.page.locator('#gallery-toggle')).to_have_attribute('aria-expanded', 'false')
+        expect(self.page.locator('#gallery-reveal')).to_be_visible()
+        expect(self.page.locator('#photo-heading-toggle')).to_have_attribute('aria-expanded', 'false')
         self.assertEqual(self.page.evaluate("testStreams[0].getVideoTracks()[0].readyState"), 'live')
-        self.click_video()
-        expect(self.page.locator('.photo-card')).to_have_count(2)
-        self.page.locator('#gallery-toggle').click()
+        self.capture()
+        expect(self.page.locator('#photo-panel')).to_be_hidden()
+        self.page.keyboard.press('Space')
+        expect(self.page.locator('.photo-card')).to_have_count(3)
+        self.click_video(1000, 360)
         expect(self.page.locator('#photo-panel')).to_be_visible()
-        expect(self.page.locator('#gallery-toggle')).to_have_attribute('aria-expanded', 'true')
-        expect(self.page.locator('#photo-count')).to_have_text('2')
+        expect(self.page.locator('#gallery-reveal')).to_be_hidden()
+        expect(self.page.locator('#photo-heading-toggle')).to_have_attribute('aria-expanded', 'true')
+        expect(self.page.locator('#photo-heading-toggle')).to_have_text('撮影画像（3）')
+        self.assertEqual(self.page.evaluate('revokedUrls.length'), 0)
+        self.assertEqual(self.page.locator('.download').last.get_attribute('href'), urls[0])
+        for point in [(1260, 2), (1260, 716), (650, 360)]:
+            self.page.locator('#photo-heading-toggle').click()
+            self.click_video(*point)
+            expect(self.page.locator('#photo-panel')).to_be_visible()
+            expect(self.page.locator('.photo-card')).to_have_count(3)
+        # The invisible restore control also supports keyboard users.
+        self.page.locator('#photo-heading-toggle').focus()
+        self.page.keyboard.press('Enter')
+        expect(self.page.locator('#photo-panel')).to_be_hidden()
+        self.page.locator('#gallery-reveal').focus()
+        self.page.keyboard.press('Enter')
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('.photo-card')).to_have_count(3)
 
     def test_previous_cached_assets_do_not_break_new_layout(self):
         class CachedHandler(QuietHandler):
@@ -558,11 +607,21 @@ class CameraBrowserTests(unittest.TestCase):
             with self.subTest(viewport=(width, height)):
                 self.page.set_viewport_size({'width': width, 'height': height})
                 self.assertEqual(self.page.locator('#video').bounding_box(), {'x': 0, 'y': 0, 'width': width, 'height': height})
-                camera = self.page.locator('.camera-panel').bounding_box()
+                camera = self.page.locator('#camera-select').bounding_box()
                 gallery = self.page.locator('.photo-panel').bounding_box()
-                self.assertGreater(gallery['x'], camera['x'] + camera['width'])
+                self.assertGreater(gallery['y'], camera['y'] + camera['height'])
+                brand = self.page.locator('.brand').bounding_box()
+                self.assertGreater(camera['x'], brand['x'] + brand['width'])
+                self.assertAlmostEqual(camera['y'] + camera['height'] / 2, brand['y'] + brand['height'] / 2, delta=1)
+                self.assertLessEqual(camera['x'] + camera['width'], width)
                 self.assertLessEqual(camera['y'] + camera['height'], height)
                 self.assertLessEqual(gallery['y'] + gallery['height'], height)
+                self.page.locator('#photo-heading-toggle').click()
+                expect(self.page.locator('#photo-panel')).to_be_hidden()
+                self.assertTrue(self.page.evaluate("() => {const c=document.querySelector('#camera-select'),r=c.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2) === c;}"))
+                self.click_video(width - 2, height / 2)
+                expect(self.page.locator('#photo-panel')).to_be_visible()
+                expect(self.page.locator('.photo-card')).to_have_count(2)
                 expect(self.page.locator('#video')).to_be_in_viewport()
                 self.assertTrue(self.page.evaluate('document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight'))
 

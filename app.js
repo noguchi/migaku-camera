@@ -26,13 +26,9 @@
   function controls() {
     const active = !!stream;
     camera.disabled = !supported || starting || !camera.value;
-    $('refresh-button').disabled = !supported || starting;
     video.setAttribute('aria-disabled', String(!canCapture()));
-    $('live-badge').textContent = starting ? '準備中' : active ? '接続中' : '停止中';
-    $('live-badge').classList.toggle('live', active);
     video.hidden = !active;
     $('preview-placeholder').hidden = active;
-    $('video-size').textContent = active && video.videoWidth ? `${video.videoWidth} × ${video.videoHeight} px` : '';
   }
 
   function photoControls() {
@@ -213,12 +209,10 @@
       image.src = url;
       const meta = document.createElement('div');
       meta.className = 'photo-meta';
-      const size = document.createElement('span');
-      size.textContent = `${canvas.width} × ${canvas.height} px`;
       const time = document.createElement('time');
       time.dateTime = date.toISOString();
       time.textContent = date.toLocaleTimeString('ja-JP');
-      meta.append(size, time);
+      meta.append(time);
       const actions = document.createElement('div');
       actions.className = 'photo-actions';
       const download = document.createElement('a');
@@ -273,14 +267,18 @@
     // Before permission is granted, enumeration may hide device IDs.
     if (pageActive && request === generation && !stream && !starting && (manual || camera.value)) void start();
   }
-  $('refresh-button').addEventListener('click', () => void reconnect(true));
   camera.addEventListener('change', () => void start());
   $('clear-button').addEventListener('click', () => { clearPhotos(); $('photo-announcement').textContent = '0枚'; });
-  $('gallery-toggle').addEventListener('click', () => {
+  function showGallery(visible) {
     const panel = $('photo-panel');
-    panel.hidden = !panel.hidden;
-    $('gallery-toggle').setAttribute('aria-expanded', String(!panel.hidden));
-  });
+    panel.hidden = !visible;
+    $('gallery-reveal').hidden = visible;
+    $('photo-heading-toggle').setAttribute('aria-expanded', String(visible));
+    $('gallery-reveal').setAttribute('aria-expanded', String(visible));
+    (visible ? $('photo-heading-toggle') : video.hidden ? $('gallery-reveal') : video).focus({ preventScroll: true });
+  }
+  $('photo-heading-toggle').addEventListener('click', () => showGallery(false));
+  $('gallery-reveal').addEventListener('click', () => showGallery(true));
   video.addEventListener('loadeddata', controls);
   video.addEventListener('resize', controls);
   window.addEventListener('pagehide', () => {
@@ -296,7 +294,15 @@
     if (supported && event.persisted) void start(true);
   });
   if (supported) {
-    media.addEventListener('devicechange', () => void reconnect());
+    media.addEventListener('devicechange', () => void reconnect(true));
+    // Retry when the user restores camera permission, without a retry button.
+    if (navigator.permissions?.query) {
+      void navigator.permissions.query({ name: 'camera' }).then(permission => {
+        permission.addEventListener('change', () => {
+          if (permission.state === 'granted' && !stream && !starting) void reconnect(true);
+        });
+      }).catch(() => {});
+    }
     void start(true);
   } else {
     status(window.isSecureContext ? 'カメラ機能に対応していません' : 'HTTPSが必要です');
