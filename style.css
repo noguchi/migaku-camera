@@ -69,6 +69,7 @@ body {
   text-shadow: 0 2px 12px #000b;
 }
 .brand-mark { display: block; width: 74px; height: 74px; flex: 0 0 auto; background: #fff; }
+.brand-name { display: block; }
 .panel {
   position: absolute;
   z-index: 1;
@@ -131,6 +132,8 @@ select option { background: #14252c; color: var(--ink); }
 }
 .button:hover { filter: brightness(1.1); }
 .button:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+.fullscreen-toggle { flex: 0 0 42px; width: 42px; height: 42px; padding: 9px; border: 1px solid #ffffff32; background: var(--overlay-bg); color: var(--ink); backdrop-filter: blur(8px); }
+.fullscreen-toggle svg { width: 22px; height: 22px; pointer-events: none; }
 .status { font-size: 12px; border-radius: 7px; padding: 10px; margin: 0; background: #aa4226db; color: #ffd8bc; overflow-wrap: anywhere; }
 .photo-panel {
   top: var(--edge);
@@ -163,6 +166,10 @@ select option { background: #14252c; color: var(--ink); }
   .panel-heading { gap: 4px; margin-bottom: 10px; }
   h2 { font-size: 12px; }
   select { font-size: 12px; padding: 0 5px; }
+}
+@media (max-width: 500px) {
+  .brand { white-space: normal; line-height: 20px; }
+  .brand-name { width: 3.2em; word-break: keep-all; }
 }
 @media (max-width: 400px) {
   .photo-panel { padding: 6px; }

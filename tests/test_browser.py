@@ -255,6 +255,45 @@ class CameraBrowserTests(unittest.TestCase):
             expect(control.locator('svg')).to_be_visible()
         self.assertNotRegex(self.page.locator('body').inner_text(), r'\d+\s*×\s*\d+|\bpx\b')
 
+    def test_fullscreen_toggle_external_exit_and_failure_do_not_capture(self):
+        self.open()
+        self.capture()
+        button = self.page.locator('#fullscreen-toggle')
+        expect(button).to_have_accessible_name('全画面表示')
+        button.click()
+        expect(button).to_have_attribute('aria-pressed', 'true')
+        expect(button).to_have_accessible_name('全画面表示を解除')
+        self.assertTrue(self.page.evaluate('document.fullscreenElement === document.documentElement'))
+        expect(self.page.locator('#camera-select')).to_be_visible()
+        expect(self.page.locator('#photo-panel')).to_be_visible()
+        expect(self.page.locator('.photo-card')).to_have_count(1)
+        expect(button).to_have_attribute('aria-busy', 'false')
+        expect(button).to_be_focused()
+        self.page.keyboard.press('Space')
+        expect(button).to_have_attribute('aria-pressed', 'false')
+        self.assertIsNone(self.page.evaluate('document.fullscreenElement'))
+        button.click()
+        expect(button).to_have_attribute('aria-pressed', 'true')
+        # Exiting outside the toggle (as with the browser's Esc command) updates the UI.
+        self.page.evaluate('document.exitFullscreen()')
+        expect(button).to_have_attribute('aria-pressed', 'false')
+        expect(button).to_have_accessible_name('全画面表示')
+        self.page.evaluate("() => { document.documentElement.requestFullscreen = async () => { throw new DOMException('', 'NotAllowedError'); }; }")
+        button.click()
+        expect(self.page.locator('#status')).to_have_text('全画面表示を切り替えられません')
+        expect(button).to_be_enabled()
+        expect(button).to_have_attribute('aria-pressed', 'false')
+        expect(self.page.locator('.photo-card')).to_have_count(1)
+        self.assertEqual(self.page.evaluate('testStreams.length'), 1)
+        self.assertEqual(self.page.evaluate("testStreams[0].getVideoTracks()[0].readyState"), 'live')
+
+    def test_fullscreen_unavailable_does_not_prevent_capture(self):
+        self.page.add_init_script("Object.defineProperty(document, 'fullscreenEnabled', {get: () => false});")
+        self.open()
+        expect(self.page.get_by_role('button', name='全画面表示に対応していません')).to_be_disabled()
+        self.capture()
+        expect(self.page.locator('.photo-card')).to_have_count(1)
+
     def test_camera_permission_restoration_restarts_without_retry_button(self):
         self.page.add_init_script("""
           window.cameraPermission = new EventTarget();
@@ -653,7 +692,12 @@ class CameraBrowserTests(unittest.TestCase):
                 self.page.set_viewport_size({'width': width, 'height': height})
                 self.assertEqual(self.page.locator('#video').bounding_box(), {'x': 0, 'y': 0, 'width': width, 'height': height})
                 camera = self.page.locator('#camera-select').bounding_box()
+                fullscreen = self.page.locator('#fullscreen-toggle').bounding_box()
                 gallery = self.page.locator('.photo-panel').bounding_box()
+                self.assertGreater(fullscreen['x'], camera['x'] + camera['width'])
+                self.assertAlmostEqual(fullscreen['y'], camera['y'], delta=1)
+                self.assertLess(fullscreen['x'] + fullscreen['width'], gallery['x'])
+                self.assertTrue(self.page.locator('#fullscreen-toggle').evaluate('(b) => {const r=b.getBoundingClientRect();return b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}'))
                 self.assertLessEqual(gallery['width'], width / 3)
                 self.assertAlmostEqual(gallery['y'], camera['y'], delta=1)
                 self.assertLess(camera['x'] + camera['width'], gallery['x'])

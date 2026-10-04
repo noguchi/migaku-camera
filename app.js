@@ -282,6 +282,37 @@
     if (pageActive && request === generation && !stream && !starting && (manual || camera.value)) void start();
   }
   camera.addEventListener('change', () => void start());
+  const fullscreen = $('fullscreen-toggle');
+  let fullscreenPending = false;
+  function fullscreenControls() {
+    const active = !!document.fullscreenElement;
+    const available = !!document.fullscreenEnabled && !!document.documentElement.requestFullscreen && !!document.exitFullscreen;
+    const label = !available ? '全画面表示に対応していません' : active ? '全画面表示を解除' : '全画面表示';
+    fullscreen.disabled = !available;
+    fullscreen.setAttribute('aria-busy', String(fullscreenPending));
+    fullscreen.setAttribute('aria-pressed', String(active));
+    fullscreen.setAttribute('aria-label', label);
+    fullscreen.title = label;
+    fullscreen.replaceChildren(photoIcon(active
+      ? 'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5'
+      : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5'));
+  }
+  fullscreen.addEventListener('click', async () => {
+    if (fullscreenPending) return;
+    fullscreenPending = true;
+    fullscreenControls();
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch {
+      status('全画面表示を切り替えられません');
+    } finally {
+      fullscreenPending = false;
+      fullscreenControls();
+    }
+  });
+  document.addEventListener('fullscreenchange', fullscreenControls);
+  fullscreenControls();
   function showGallery(visible) {
     const panel = $('photo-panel');
     panel.hidden = !visible;
