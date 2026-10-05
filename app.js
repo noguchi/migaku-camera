@@ -198,22 +198,6 @@
     }
   }
 
-  function photoIcon(pathData) {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('stroke', 'currentColor');
-    svg.setAttribute('stroke-width', '2');
-    svg.setAttribute('stroke-linecap', 'round');
-    svg.setAttribute('stroke-linejoin', 'round');
-    svg.setAttribute('aria-hidden', 'true');
-    svg.setAttribute('focusable', 'false');
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', pathData);
-    svg.append(path);
-    return svg;
-  }
-
   async function capture() {
     if (!canCapture()) return;
     const shutter = prepareShutter();
@@ -233,30 +217,18 @@
       const url = URL.createObjectURL(blob);
       const dateStamp = [date.getFullYear(), date.getMonth() + 1, date.getDate()].map(n => String(n).padStart(2, '0')).join('');
       const timeStamp = [date.getHours(), date.getMinutes(), date.getSeconds()].map(n => String(n).padStart(2, '0')).join('');
-      const card = document.createElement('li');
-      card.className = 'photo-card';
+      const card = $('photo-card-template').content.firstElementChild.cloneNode(true);
       card.dataset.photoId = id;
-      const image = document.createElement('img');
-      image.className = 'photo-image';
+      const image = card.querySelector('.photo-image');
       image.alt = `撮影画像 ${id}`;
       image.width = canvas.width;
       image.height = canvas.height;
-      image.loading = 'lazy';
       image.src = url;
-      const actions = document.createElement('div');
-      actions.className = 'photo-actions';
-      const download = document.createElement('a');
-      download.className = 'button download';
+      const download = card.querySelector('.download');
       download.href = url;
       download.download = `migaku-${dateStamp}-${timeStamp}-${id}.jpg`;
-      download.append(photoIcon('M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4'));
-      download.title = 'JPGでダウンロード';
       download.setAttribute('aria-label', `撮影画像 ${id} をJPGでダウンロード`);
-      const remove = document.createElement('button');
-      remove.className = 'button delete-photo';
-      remove.type = 'button';
-      remove.append(photoIcon('M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7'));
-      remove.title = '削除';
+      const remove = card.querySelector('.delete-photo');
       remove.setAttribute('aria-label', `撮影画像 ${id} を削除`);
       remove.addEventListener('click', () => {
         const next = card.nextElementSibling || card.previousElementSibling;
@@ -264,8 +236,6 @@
         (next?.querySelector('.delete-photo') || video).focus({ preventScroll: true });
         $('photo-announcement').textContent = `${photos.size}枚`;
       });
-      actions.append(download, remove);
-      card.append(image, actions);
       photos.set(id, { url, card });
       $('photo-list').prepend(card);
       $('photo-panel').scrollTop = 0;
@@ -321,9 +291,7 @@
     fullscreen.setAttribute('aria-pressed', String(active));
     fullscreen.setAttribute('aria-label', label);
     fullscreen.title = label;
-    fullscreen.replaceChildren(photoIcon(active
-      ? 'M3 8h5V3m8 0v5h5M8 21v-5H3m18 0h-5v5'
-      : 'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5'));
+    fullscreen.querySelector('use').setAttribute('href', active ? '#icon-fullscreen-exit' : '#icon-fullscreen-enter');
   }
   fullscreen.addEventListener('click', async () => {
     if (fullscreenPending) return;
